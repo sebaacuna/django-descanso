@@ -45,13 +45,14 @@ define ['jquery', 'cs!notifier', "object.watch"], ($, notifier) ->
                         dom_notifier.notifyAll 'change', { path: path_cpy , value: $(event.target).val() }
                 else
                     node.text target[key]
-                    
+
             
             # Watch object events
             fields = []
             fields.push k for own k of obj
             for k in fields
                 obj.watch k, (k, oldval, newval) ->
+                    console.log "Object changed "
                     object_notifier.notifyAll 'change', { path: [k], value: newval }
                     return newval
             
@@ -60,6 +61,7 @@ define ['jquery', 'cs!notifier', "object.watch"], ($, notifier) ->
                 "change": (args) ->
                     console.log "Updating object"
                     obj = target
+                    i = 0
                     while i < args.path.length - 1
                         obj = obj[args.path[i++]]
                     obj[args.path[i]] = args.value
@@ -116,27 +118,34 @@ define ['jquery', 'cs!notifier', "object.watch"], ($, notifier) ->
             dict[f.name] = obj[f.name] for f in @fields
             return dict
             
-        member_url: (id) ->
+        member_url: (obj_or_id) ->
+            if obj_or_id.id
+                id = obj_or_id.id
+            else
+                id = obj_or_id
             return @server_url + [@url, id ].join "/"
-        
-        get: (id, callback) ->
 
-            cache = @cache
-            $.ajax @member_url(id),
-                success: (data, textStatus, jqXHR) ->
-                    cache[id] = data
-                    callback data
-                dataType: "json"
-                    
+        get: (id, callback) ->
+            @ajax "GET", id, callback
+
         put: (obj, callback) ->
-            cache = @cache
-            $.ajax @member_url(obj.id),
-                data: @dict(obj)
+            @ajax "PUT", obj, callback
+
+        delete: (obj, callback) ->
+            @ajax "DELETE", obj, callback
+ 
+        ajax: (method, obj, callback) ->
+            args =
                 success: (data, textStatus, jqXHR) ->
                     callback data
-                dataType: "text"
-                type: "PUT"
-            
+                type: method
+                dataType: if method == 'PUT' then 'text' else 'json'
+
+            if typeof obj == 'object'
+                args.data = @dict(obj)
+                
+            $.ajax @member_url(obj), args
+
     
     class ResourcePaneView
         
@@ -148,8 +157,8 @@ define ['jquery', 'cs!notifier', "object.watch"], ($, notifier) ->
             for field, i in @resource.fields
                 row = $("<div />").addClass("property")
                 view.append row
-                row.append $("<div />").addClass("key").text( field.verbose_name )
-                row.append $("<input />").attr("bind", field.name).addClass("value"), $("<div>").attr("bind", field.name).addClass("value")
+                row.append $("<div />").addClass("fieldName").text( field.verbose_name )
+                row.append $("<input />").attr("bind", field.name).addClass("valueInput"), $("<div>").attr("bind", field.name).addClass("valueDisplay")
                     
             view.append $("<div>").addClass("controls").append(
                 $("<a/>").addClass("edit").text("Edit").bind "click", ()-> view.addClass "editmode"
@@ -157,6 +166,12 @@ define ['jquery', 'cs!notifier', "object.watch"], ($, notifier) ->
                     view.removeClass "editmode"
                     view.addClass "submitmode"
                     resource.put obj, ()->
+                        view.removeClass "submitmode"
+                $("<a/>").addClass("cancel").text("Cancel").bind "click", ()-> view.removeClass "editmode"
+                $("<a/>").addClass("delete").text("Delete").bind "click", ()-> 
+                    view.removeClass "editmode"
+                    view.addClass "submitmode"
+                    resource.delete obj, ()->
                         view.removeClass "submitmode"
             )
                         

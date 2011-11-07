@@ -34,7 +34,7 @@ define [], () ->
 	        @_eventTriggered[eventName] == true
 
 	    removeListener: (l) ->
-	        @_listeners = [ listener for listener in @_listeners when listener != l ]
+	        @_listeners = [ listener for own listener in @_listeners when listener != l ]
 
 	    notifyAll: (eventName, args) ->
 	        @_eventTriggered[eventName] = true
