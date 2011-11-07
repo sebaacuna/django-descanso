@@ -1,0 +1,21 @@
+Running Descanso
+---------------
+
+Add the descanso app to your Django project
+Create an app with your own models and add an api.py file
+
+In the api.py file, add the following lines:
+    import descanso
+    api = descanso.api()
+
+You can now import your models and register them in api.py:
+    from models import ModelA, ModelB
+    api.register(ModelA)
+    api.register(ModelB)
+
+You can also use api.py as the url file for your api, just add:
+    urlpatterns = api.urlpatterns()
+
+Configure your project's urls:
+
+    urlpatterns +=  patterns('', (r'^api/', include('demo.api')) )
