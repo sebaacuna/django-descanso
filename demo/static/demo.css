@@ -1,0 +1,20 @@
+* {
+    font: 12pt Helvetica, sans-serif;
+}
+
+.descanso-form {
+    margin: 10px 50px;
+}
+
+.descanso-form-key, .descanso-form-value {
+    display: inline-block;
+    width: 100px;
+    color: #666;
+}
+
+.descanso-form-property {
+    
+}
+
+.descanso-form-controls {
+}

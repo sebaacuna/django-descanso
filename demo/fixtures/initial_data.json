@@ -1,0 +1,44 @@
+[
+    {
+        "model" : "demo.person",
+        "pk": "1",
+        "fields" : {
+            "name" : "John",
+            "surname" : "Doe",
+            "email" : "john@doe.com",
+            "date_of_birth" : "2001-01-01",
+            "address" : "123 Main St."
+        }
+    },
+    
+    {
+        "model" : "demo.person",
+        "pk": "2",
+        "fields" : {
+            "name" : "Jane",
+            "surname" : "Doe",
+            "email" : "jane@doe.com",
+            "date_of_birth" : "2001-01-01",
+            "address" : "123 Main St."
+        }
+    },
+    
+    {
+        "model" : "demo.pet",
+        "pk": "1",
+        "fields" : {
+            "name" : "Bobby",
+            "master" : "1"
+        }
+    },
+    
+    {
+        "model" : "demo.pet",
+        "pk": "2",
+        "fields" : {
+            "name" : "Missy",
+            "master" : "2"
+        }
+    }
+
+]

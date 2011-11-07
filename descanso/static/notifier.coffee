@@ -1,0 +1,1 @@
+../../../../node-notifier/src/notifier.coffee

@@ -1,0 +1,12 @@
+<html>
+<head>
+	<title>Descanso - Demo</title>
+	<script data-main="static/main" src="{{STATIC_URL}}require-jquery.js" type="text/javascript" ></script>
+	<link rel="stylesheet" href="{{STATIC_URL}}demo.css" type="text/css" />
+</head>
+<body>
+<div id="demo" ></div>
+<script type="text/javascript">
+require(["main"], function(main) { for(k in main) { window[k] = main[k] } });
+</script>
+</body>
