@@ -2,19 +2,18 @@
     font: 12pt Helvetica, sans-serif;
 }
 
-.descanso-form {
+form.descanso {
     margin: 10px 50px;
-}
-
-.descanso-form-key, .descanso-form-value {
-    display: inline-block;
-    width: 100px;
     color: #666;
 }
 
-.descanso-form-property {
-    
-}
+form.descanso .property input.value { display: none }
+form.descanso .property div.value { display: inline-block }
 
-.descanso-form-controls {
+form.descanso.editmode .property input.value { display: inline-block }
+form.descanso.editmode .property div.value { display:none }
+
+form.descanso .property * {
+    display: inline-block;
+    width: 100px;
 }

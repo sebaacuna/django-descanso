@@ -133,9 +133,8 @@ define ['jquery', 'cs!notifier', "object.watch"], ($, notifier) ->
             $.ajax @member_url(obj.id),
                 data: @dict(obj)
                 success: (data, textStatus, jqXHR) ->
-                    cache[id] = data
                     callback data
-                dataType: "json"
+                dataType: "text"
                 type: "PUT"
             
     
@@ -144,19 +143,22 @@ define ['jquery', 'cs!notifier', "object.watch"], ($, notifier) ->
         constructor: (@resource) ->
         
         view: (obj) ->
-            view = $("<form />").addClass "descanso-resourcepaneview"
+            view = $("<form />").addClass "descanso"
             resource = @resource
             for field, i in @resource.fields
-                row = view.append $("<div />").addClass("descanso-form-property")
-                row.append $("<div />").addClass("descanso-form-key").text( field.verbose_name )
-                row.append $("<div />").addClass("descanso-form-value").append $("<input />").attr("bind", field.name), $("<div>").attr("bind", field.name)
+                row = $("<div />").addClass("property")
+                view.append row
+                row.append $("<div />").addClass("key").text( field.verbose_name )
+                row.append $("<input />").attr("bind", field.name).addClass("value"), $("<div>").attr("bind", field.name).addClass("value")
                     
-            view.append $("<div>").addClass("descanso-controls").append $("<a/>").addClass("edit").text("Edit").bind "click", ()-> $(@).addClass "descanso-editmode",
-            $("<a/>").addClass("submit").text("Submit").bind "click", ()->
-                view.removeClass "descanso-editmode"
-                view.addClass "descanso-submitmode"
-                resource.put obj, ()->
-                    view.removeClass "descanso-submitmode"
+            view.append $("<div>").addClass("controls").append(
+                $("<a/>").addClass("edit").text("Edit").bind "click", ()-> view.addClass "editmode"
+                $("<a/>").addClass("submit").text("Submit").bind "click", ()->
+                    view.removeClass "editmode"
+                    view.addClass "submitmode"
+                    resource.put obj, ()->
+                        view.removeClass "submitmode"
+            )
                         
             return view
 
