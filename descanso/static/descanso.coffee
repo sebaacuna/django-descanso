@@ -6,6 +6,12 @@ define ['jquery', 'cs!notifier', "object.watch"], ($, notifier) ->
             @server_url = ''
             @api_url = ''
             @meta_resources_url = "/_resources"
+            
+        printRepo: () ->
+            for own name, r of @resources
+                console.log "<", name , ">"
+                for own id, obj of r.repo
+                    console.log ">> ", obj.id, ":", obj.name
         
         addResource: (metadata, cls) ->
             if !cls
@@ -52,7 +58,6 @@ define ['jquery', 'cs!notifier', "object.watch"], ($, notifier) ->
             fields.push k for own k of obj
             for k in fields
                 obj.watch k, (k, oldval, newval) ->
-                    console.log "Object changed "
                     object_notifier.notifyAll 'change', { path: [k], value: newval }
                     return newval
             
@@ -111,7 +116,7 @@ define ['jquery', 'cs!notifier', "object.watch"], ($, notifier) ->
             @name = metadata.name
             @url = metadata.url
             @fields = metadata.fields
-            @cache = {}
+            @repo = {}
 
         dict: (obj) ->
             dict = {}
@@ -126,13 +131,23 @@ define ['jquery', 'cs!notifier', "object.watch"], ($, notifier) ->
             return @server_url + [@url, id ].join "/"
 
         get: (id, callback) ->
-            @ajax "GET", id, callback
+            r = @
+            @ajax "GET", id, (data) ->
+                r.repo[id] = r.dict(data)
+                callback data
+            
 
         put: (obj, callback) ->
-            @ajax "PUT", obj, callback
+            r = @
+            @ajax "PUT", obj, (data) ->
+                r.repo[obj.id] = r.dict(obj)
+                callback data
 
         delete: (obj, callback) ->
-            @ajax "DELETE", obj, callback
+            r = @
+            @ajax "DELETE", obj, (data) ->
+                delete r.repo[obj.id]
+                callback data
  
         ajax: (method, obj, callback) ->
             args =

@@ -5,20 +5,26 @@
 form.descanso {
     margin: 10px 50px;
     color: #666;
+    width: 400px;
+    padding: 20px;
+    border: 1px solid silver;
     
     .property {
         * {
             display: inline-block;
-            width: 100px;
+
+//            line-height: 18px;
         }
-        .valueInput { display: none }
-        .valueDisplay { display: inline-block }
+        .fieldName      { display: inline-block; width: 150px; height: 22px; }
+        .valueInput     { display: none;         width: 150px; height: 22px; }
+        .valueDisplay   { display: inline-block; width: 144px; height: 18px; padding: 3px; font-size: 14px }
     }
     
     .controls {
         
         .edit {
             .cssbutton(#ededed, #dfdfdf, #777777, #dcdcdc, #ffffff, #ffffff);
+            display: inline-block;
         }
         
         .cancel {
@@ -42,10 +48,6 @@ form.descanso {
 form.descanso.editmode {
     
     .property {
-        * {
-            display: inline-block;
-            width: 100px;
-        }
         .valueInput { display: inline-block }
         .valueDisplay { display: none }
     }
