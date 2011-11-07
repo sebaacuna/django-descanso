@@ -60,6 +60,7 @@ class api:
                             'name' : f.attname,
                             'choices' : dict(f.choices),
                             'type' : f.__class__.__name__,
+                            'verbose_name' : f.verbose_name.capitalize(),
                          } for f in m._meta.fields ],
 
                     } for m in myapi.models ]

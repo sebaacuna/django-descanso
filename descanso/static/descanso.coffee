@@ -25,7 +25,9 @@ define ['jquery', 'cs!notifier', "object.watch"], ($, notifier) ->
             
             # Find all bindable nodes under the root binding element
             $("#"+elem.attr("id") + " [bind]").each (i, node) ->
-                path = $(node).attr("bind").trim().split(" ")
+                tagName = node.tagName
+                node = $(node)
+                path = node.attr("bind").trim().split(" ")
                 path_cpy = path.slice(0) # A copy of the array
                 target = obj
                 
@@ -34,11 +36,15 @@ define ['jquery', 'cs!notifier', "object.watch"], ($, notifier) ->
                     target = target[path.shift()]
 
                 key = path.shift()
-                $(node).val(target[key])
+                
+                if tagName == "INPUT"
+                    node.val target[key]
 
-                # Set listeners from DOM to monitored obejct
-                $(node).bind 'change', (event) ->
-                    dom_notifier.notifyAll 'change', { path: path_cpy , value: $(event.target).val() }
+                    # Set listeners from DOM to monitored obejct
+                    node.bind 'change', (event) ->
+                        dom_notifier.notifyAll 'change', { path: path_cpy , value: $(event.target).val() }
+                else
+                    node.text target[key]
                     
             
             # Watch object events
@@ -63,28 +69,29 @@ define ['jquery', 'cs!notifier', "object.watch"], ($, notifier) ->
             return {
                 "change" : (args) ->
                     console.log "Updating element"
-                    $('#'+target.attr("id") + ' [bind="'+args.path.join(" ")+'"]').val(args.value)
+                    $('#'+target.attr("id") + ' [bind="'+args.path.join(" ")+'"]').each (i,node) ->
+                        if node.tagName == "INPUT"
+                            $(node).val(args.value)
+                        else
+                            $(node).text(args.value)
             }
             
         formRender: ( resource, id ) ->
             app = @
             resource = @resources[resource]
             resource.get id, (obj) ->
-                form = app.objectForm obj
-                form.append $("<div>").addClass("descanso-form-controls").append $('<input type="button" value="Send"/>').bind "click", (event)->
-                    resource.put obj
+                
+                #form = resource.form()
+                #form.append $("<div>").addClass("descanso-form-controls").append $('<input type="button" value="Send"/>').bind "click", (event)->
+                #    resource.put obj
 
-                form.attr "id", app.name 
-                $("#"+app.name).replaceWith form 
-                app.bind form, obj
+                #form.attr "id", app.name 
+                #$("#"+app.name).replaceWith form 
+                view = new ResourcePaneView(resource).view(obj)
+                view.attr "id", app.name 
+                $("#"+app.name).replaceWith view
+                app.bind view, obj
 
-        objectForm: (obj) ->
-            form = $("<form />").addClass("descanso-form")
-            for own key of obj
-                row = form.append $("<div />").addClass("descanso-form-property")
-                row.append $("<div />").addClass("descanso-form-key").text( key )
-                row.append $("<div />").addClass("descanso-form-value").append $("<input />").attr("bind", key)
-            return form
 
         loadResources: ( callback ) ->
             app = @
@@ -129,6 +136,28 @@ define ['jquery', 'cs!notifier', "object.watch"], ($, notifier) ->
                     cache[id] = data
                     callback data
                 dataType: "json"
-                type: "PUT"            
+                type: "PUT"
+            
+    
+    class ResourcePaneView
+        
+        constructor: (@resource) ->
+        
+        view: (obj) ->
+            view = $("<form />").addClass "descanso-resourcepaneview"
+            resource = @resource
+            for field, i in @resource.fields
+                row = view.append $("<div />").addClass("descanso-form-property")
+                row.append $("<div />").addClass("descanso-form-key").text( field.verbose_name )
+                row.append $("<div />").addClass("descanso-form-value").append $("<input />").attr("bind", field.name), $("<div>").attr("bind", field.name)
+                    
+            view.append $("<div>").addClass("descanso-controls").append $("<a/>").addClass("edit").text("Edit").bind "click", ()-> $(@).addClass "descanso-editmode",
+            $("<a/>").addClass("submit").text("Submit").bind "click", ()->
+                view.removeClass "descanso-editmode"
+                view.addClass "descanso-submitmode"
+                resource.put obj, ()->
+                    view.removeClass "descanso-submitmode"
+                        
+            return view
 
     return  { "App": App }
