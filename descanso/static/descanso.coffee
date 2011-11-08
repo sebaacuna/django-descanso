@@ -18,9 +18,10 @@ define ['jquery', 'cs!notifier'], ($, notifier) ->
                 cls = Resource
             @resources[metadata.name] = new cls( @server_url, metadata)
 
-        renderView: ( id, view ) ->
-            view.elem.attr "id", id
-            $("#"+id).replaceWith view.elem
+        renderView: ( selector, view ) ->
+            elem = $(selector)
+            elem.empty()
+            elem.append(view.elem)
 
         loadResources: ( callback ) ->
             app = @
@@ -151,6 +152,9 @@ define ['jquery', 'cs!notifier'], ($, notifier) ->
                 
             return @server_url + [@url, id ].join "/"
 
+        list: (callback) ->
+            @ajax "GET", "", (data) ->
+                callback data
 
         post: (obj, callback) ->
             r =@
@@ -189,13 +193,52 @@ define ['jquery', 'cs!notifier'], ($, notifier) ->
             $.ajax @member_url(obj), args
 
     
-    class ResourcePaneView
+    ###
+    ResourceViews are views that are associated
+    to a single specific resource
+    ###
+    class ResourceView
         
         constructor: (@resource) ->
             @fields = @resource.fields
-            @elem = $("<form />").addClass "descanso"
+            
+        bind: (obj) ->
+            App.bind @, obj
 
-            for field, i in @fields
+    
+    class ResourceListView extends ResourceView
+        
+        constructor: (resource) ->
+            super resource
+
+            headrow = $("<tr>")
+            for field, i in @resource.fields
+                headrow.append $("<th>").text(field.name)
+                
+            thead = $("<thead>").append headrow
+            @tbody = $("<tbody>")
+            @elem = $("<table>").addClass "resourcelist view"
+            @elem.append thead, @tbody
+            
+        bind: (obj_list) ->
+            view = @
+            for obj in obj_list
+                row = $("<tr>").attr("id", obj.id)
+                for field, i in @resource.fields
+                    row.append $("<td>").text obj[field.name]
+                row.bind "click", (event)->
+                    view.onSelect $(@).attr("id")
+                @tbody.append row
+
+            super obj
+    
+    class ResourcePaneView extends ResourceView
+        
+        constructor: (resource) ->
+            super resource
+            @elem = $("<form />").addClass "resourcepane view"
+
+            for field, i in @resource.fields
                 row = $("<div />").addClass("property")
                 @elem.append row
                 row.append $("<div>"    ).addClass("fieldName").text( field.verbose_name )
@@ -233,6 +276,10 @@ define ['jquery', 'cs!notifier'], ($, notifier) ->
                     view.bind(resource.empty())
                     elem.removeClass "submitmode"
 
-            App.bind(@, obj)
+            super obj
 
-    return  { "App": App, "ResourcePaneView": ResourcePaneView }
+    return {
+        "App": App
+        "ResourcePaneView": ResourcePaneView
+        "ResourceListView": ResourceListView
+    }

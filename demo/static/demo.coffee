@@ -8,11 +8,17 @@ define ["jquery", "cs!descanso"], ($, descanso) ->
 
         run: ->
             @loadResources (app)->
-                app.resources.person.get 1, (obj) ->
-                    view = new descanso.ResourcePaneView(app.resources.person)
+                app.resources.person.list (obj) ->
+                    view = new descanso.ResourceListView(app.resources.person)
                     view.bind(obj)
-                    app.renderView app.name, view
-        
+                    view.onSelect = (id) ->
+                        app.resources.person.get id, (obj) ->
+                            view = new descanso.ResourcePaneView(app.resources.person)
+                            view.bind(obj)
+                            app.renderView "#person_pane", view
+                        
+                    app.renderView "#person_list", view
+                            
         newEntity: () ->
             view = new descanso.ResourcePaneView(app.resources.person)
             view.bind({})
