@@ -24,11 +24,10 @@ define ['jquery', 'cs!notifier'], ($, notifier) ->
             elem.append(view.elem)
 
         loadResources: ( callback ) ->
-            app = @
             $.ajax @server_url + @api_url + @meta_resources_url,
-                success: (data, textStatus, jqXHR) ->
+                success: (data, textStatus, jqXHR) =>
                     for res in data
-                        app.addResource res
+                        @addResource res
                     callback(app)
                 dataType: "json"
 
@@ -49,78 +48,23 @@ define ['jquery', 'cs!notifier'], ($, notifier) ->
                     console.log "Updating element"
                     $(target).find('[bind="'+args.path.join(" ")+'"]').each (i,node) ->
                         if node.tagName == "INPUT"
-                            $(node).val(args.value)
+                            $(node).val args.value
                         else
-                            $(node).text(args.value)
+                            $(node).text args.value
             }
 
         @bind: (view, obj) ->
 
-            dom_notifier    = new notifier.Notifier()
-            dom_updater     = @domUpdater(view.elem)
+#            dom_notifier    = new notifier.Notifier()
 
-            object_notifier     = new notifier.Notifier()
-            object_updater     = @objectUpdater(obj)
+#            object_notifier     = new notifier.Notifier()
+#            object_updater     = @objectUpdater obj
 
-            dom_notifier.addListener(object_updater)
-            object_notifier.addListener(dom_updater)
+#            dom_notifier.addListener object_updater
+#            object_notifier.addListener @domUpdater view.elem
 
             # Find all bindable nodes under the root binding element
-            view.elem.find("[bind]").each (i, node) ->
-                tagName = node.tagName
-                node = $(node)
-                path = node.attr("bind").trim().split(" ")
-                path_cpy = path.slice(0) # A copy of the array
-                target = obj
 
-                #Initialize element
-                while path.length > 1
-                    target = target[path.shift()]
-
-                key = path.shift()
-
-                if tagName == "INPUT"
-                    node.val target[key]
-
-                    # Set listeners from DOM to monitored obejct
-                    node.bind 'change', (event) ->
-                        dom_notifier.notifyAll 'change', { path: path_cpy , value: $(event.target).val() }
-                else
-                    node.text target[key]
-
-            # Watch object events
-            #fields = []
-            #fields.push k for own k of obj
-            for field in view.fields
-                
-                #Callback to be invoked upon object property setting
-                handler = (k, oldval, newval) ->
-                    object_notifier.notifyAll 'change', { path: [k], value: newval }
-                    return newval
-                
-                #Adds getter/setters to the object    
-                addHandler = () ->
-                    prop = field.name
-                    oldval = obj[prop]
-                    newval = oldval
-                    getter = () -> return newval
-                    setter = (val) ->
-                        if typeof prop == 'function' 
-                            return #HACK
-                        oldval = newval
-                        return newval = handler prop, oldval, val
-                        
-                    if delete obj[prop] # can't watch constants
-                        if obj.defineProperty # ECMAScript 5
-                            obj.defineProperty obj, prop,
-                                get: getter
-                                set: setter
-                                enumerable: false
-                                configurable: true
-                        else if obj.__defineGetter__ && obj.__defineSetter__ # legacy
-                            obj.__defineGetter__ prop, getter
-                            obj.__defineSetter__ prop, setter
-                addHandler()
 
             
     class Resource
@@ -153,32 +97,31 @@ define ['jquery', 'cs!notifier'], ($, notifier) ->
             return @server_url + [@url, id ].join "/"
 
         list: (callback) ->
-            @ajax "GET", "", (data) ->
-                callback data
+            @ajax "GET", "", (data) =>
+                list = []
+                list.push @entity obj for obj in data
+                callback list
 
         post: (obj, callback) ->
-            r =@
-            @ajax "POST", obj, (data) ->
-                r.repo[data.id] = data
-                callback data
+            @ajax "POST", obj, (data) =>
+                #@repo[data.id] = data
+                callback @entity data
 
         get: (id, callback) ->
-            r = @
-            @ajax "GET", id, (data) ->
-                r.repo[id] = data
-                callback data
+            @ajax "GET", id, (data) =>
+                #@repo[id] = data
+                callback @entity data
 
         put: (obj, callback) ->
-            r = @
-            @ajax "PUT", obj, (data) ->
-                r.repo[obj.id] = obj
-                callback data
+            @ajax "PUT", obj, (data) =>
+                #@repo[obj.id] = obj
+                #@entity obj
+                callback obj
 
         delete: (obj, callback) ->
-            r = @
-            @ajax "DELETE", obj, (data) ->
-                delete obj  
-                callback data
+            @ajax "DELETE", obj, (data) =>
+                delete @repo[obj .id]
+                callback obj
                 
         ajax: (method, obj, callback) ->
             args =
@@ -191,7 +134,49 @@ define ['jquery', 'cs!notifier'], ($, notifier) ->
                 args.data = @dict(obj)
                 
             $.ajax @member_url(obj), args
+            
+            
+        entity: (obj) ->
+            
+            if @repo[obj.id]
+                return @repo[obj.id]
+            
+            obj_notifier = new notifier.Notifier()
+            @repo[obj.id] = 
+                notifier: obj_notifier 
+                entity: obj
+            
+            # Watch object events
+            for field in @fields
+                #Callback to be invoked upon object property setting
+                @addHandler obj, field.name, (k, oldval, newval) ->
+                    obj_notifier.notifyAll 'change', { path: [k], value: newval }
+                    return newval
+            
+            return obj
 
+
+        #Adds getter/setters to an object    
+        addHandler: (obj, prop, handler) ->
+            oldval = obj[prop]
+            newval = oldval
+            getter = () -> return newval
+            setter = (val) ->
+                if typeof prop == 'function' 
+                    return #HACK
+                oldval = newval
+                return newval = handler prop, oldval, val
+
+            if delete obj[prop] # can't watch constants
+                if obj.defineProperty # ECMAScript 5
+                    obj.defineProperty obj, prop,
+                        get: getter
+                        set: setter
+                        enumerable: false
+                        configurable: true
+                else if obj.__defineGetter__ && obj.__defineSetter__ # legacy
+                    obj.__defineGetter__ prop, getter
+                    obj.__defineSetter__ prop, setter
     
     ###
     ResourceViews are views that are associated
@@ -202,17 +187,72 @@ define ['jquery', 'cs!notifier'], ($, notifier) ->
         constructor: (@resource) ->
             @fields = @resource.fields
             
+        bind: (@obj) ->
+            domUpdater = () =>
+                return {
+                    "change" : (args) =>
+                        console.log "Updating element"
+                        $(@elem).find('[bind="'+args.path.join(" ")+'"]').each (i,node) ->
+                            if node.tagName == "INPUT"
+                                $(node).val args.value
+                            else
+                                $(node).text args.value
+                }
+            @resource.repo[obj.id].notifier.addListener domUpdater @elem
+            
+            @elem.find("[bind]").each (i, node) =>
+                tagName = node.tagName
+                node = $(node)
+                path = node.attr("bind").trim().split(" ")
+                path_cpy = path.slice(0) # A copy of the array
+                target = obj
+
+                #Initialize element
+                while path.length > 1
+                    target = target[path.shift()]
+                key = path.shift()
+
+                if tagName == "INPUT"
+                    node.val target[key]
+
+                    # Set listeners from DOM to monitored obejct
+                    node.bind 'change', (event) =>
+                        @updateObject { path: path_cpy , value: $(event.target).val() }
+                else
+                    node.text target[key]
+        
+        updateObject: (args) ->
+            console.log "Updating object"
+            obj = @obj
+            i = 0
+            while i < args.path.length - 1
+                obj = obj[args.path[i++]]
+            obj[args.path[i]] = args.value
+            
+
+    class ResourceListItemView extends ResourceView
+        
+        constructor: (resource) ->
+            super resource
+            
+            @elem = $("<tr>")
+            for field, i in resource.fields
+                @elem.append $("<td>").attr "bind", field.name
+                
         bind: (obj) ->
-            App.bind @, obj
+            @elem.attr "id", obj.id
+            super obj
 
     
     class ResourceListView extends ResourceView
         
         constructor: (resource) ->
             super resource
+            
+#            @entities = {}
 
             headrow = $("<tr>")
-            for field, i in @resource.fields
+            for field, i in resource.fields
                 headrow.append $("<th>").text(field.name)
                 
             thead = $("<thead>").append headrow
@@ -223,22 +263,21 @@ define ['jquery', 'cs!notifier'], ($, notifier) ->
         bind: (obj_list) ->
             view = @
             for obj in obj_list
-                row = $("<tr>").attr("id", obj.id)
-                for field, i in @resource.fields
-                    row.append $("<td>").text obj[field.name]
-                row.bind "click", (event)->
-                    view.onSelect $(@).attr("id")
-                @tbody.append row
+#                @entities[obj.id] = obj
+                rowview = new ResourceListItemView(@resource)
+                rowview.bind obj
+                rowview.elem.bind "click", (event)->
+                    view.onSelect obj
+                @tbody.append rowview.elem
 
-            super obj
-    
+
     class ResourcePaneView extends ResourceView
         
         constructor: (resource) ->
             super resource
             @elem = $("<form />").addClass "resourcepane view"
 
-            for field, i in @resource.fields
+            for field, i in resource.fields
                 row = $("<div />").addClass("property")
                 @elem.append row
                 row.append $("<div>"    ).addClass("fieldName").text( field.verbose_name )
@@ -253,7 +292,6 @@ define ['jquery', 'cs!notifier'], ($, notifier) ->
             )
         
         bind: (obj) ->
-            view = @
             elem = @elem
             resource = @resource
             elem.find(".controls a.edit"   ).bind "click", ()->    elem.addClass "editmode"
@@ -272,8 +310,8 @@ define ['jquery', 'cs!notifier'], ($, notifier) ->
             elem.find('.controls a.delete').bind "click", () ->
                 elem.removeClass "editmode"
                 elem.addClass "submitmode"
-                resource.delete obj, ()->
-                    view.bind(resource.empty())
+                resource.delete obj, ()=>
+                    @bind(resource.empty())
                     elem.removeClass "submitmode"
 
             super obj
