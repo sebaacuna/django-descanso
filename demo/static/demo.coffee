@@ -12,5 +12,10 @@ define ["jquery", "cs!descanso"], ($, descanso) ->
                     view = new descanso.ResourcePaneView(app.resources.person)
                     view.bind(obj)
                     app.renderView app.name, view
+        
+        newEntity: () ->
+            view = new descanso.ResourcePaneView(app.resources.person)
+            view.bind({})
+            app.renderView app.name, view
 
     return { "Demo": Demo }

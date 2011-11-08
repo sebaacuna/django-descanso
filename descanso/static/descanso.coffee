@@ -1,4 +1,4 @@
-define ['jquery', 'cs!notifier', "object.watch"], ($, notifier) ->
+define ['jquery', 'cs!notifier'], ($, notifier) ->
     class App
         
         constructor: ->
@@ -87,16 +87,39 @@ define ['jquery', 'cs!notifier', "object.watch"], ($, notifier) ->
                 else
                     node.text target[key]
 
-
             # Watch object events
-            fields = []
-            fields.push k for own k of obj
-            for k in fields
-                obj.watch k, (k, oldval, newval) ->
+            #fields = []
+            #fields.push k for own k of obj
+            for field in view.fields
+                
+                #Callback to be invoked upon object property setting
+                handler = (k, oldval, newval) ->
                     object_notifier.notifyAll 'change', { path: [k], value: newval }
                     return newval
-
-
+                
+                #Adds getter/setters to the object    
+                addHandler = () ->
+                    prop = field.name
+                    oldval = obj[prop]
+                    newval = oldval
+                    getter = () -> return newval
+                    setter = (val) ->
+                        if typeof prop == 'function' 
+                            return #HACK
+                        oldval = newval
+                        return newval = handler prop, oldval, val
+                        
+                    if delete obj[prop] # can't watch constants
+                        if obj.defineProperty # ECMAScript 5
+                            obj.defineProperty obj, prop,
+                                get: getter
+                                set: setter
+                                enumerable: false
+                                configurable: true
+                        else if obj.__defineGetter__ && obj.__defineSetter__ # legacy
+                            obj.__defineGetter__ prop, getter
+                            obj.__defineSetter__ prop, setter
+                addHandler()
 
             
     class Resource
@@ -106,6 +129,11 @@ define ['jquery', 'cs!notifier', "object.watch"], ($, notifier) ->
             @url = metadata.url
             @fields = metadata.fields
             @repo = {}
+
+        empty: () ->
+            dict = {}
+            dict[f.name] = null for f in @fields
+            return dict
 
         dict: (obj) ->
             dict = {}
@@ -145,7 +173,7 @@ define ['jquery', 'cs!notifier', "object.watch"], ($, notifier) ->
         delete: (obj, callback) ->
             r = @
             @ajax "DELETE", obj, (data) ->
-                delete r.repo[obj.id]
+                delete obj  
                 callback data
                 
         ajax: (method, obj, callback) ->
@@ -164,8 +192,10 @@ define ['jquery', 'cs!notifier', "object.watch"], ($, notifier) ->
     class ResourcePaneView
         
         constructor: (@resource) ->
+            @fields = @resource.fields
             @elem = $("<form />").addClass "descanso"
-            for field, i in @resource.fields
+
+            for field, i in @fields
                 row = $("<div />").addClass("property")
                 @elem.append row
                 row.append $("<div>"    ).addClass("fieldName").text( field.verbose_name )
@@ -179,7 +209,8 @@ define ['jquery', 'cs!notifier', "object.watch"], ($, notifier) ->
                 $("<a/>").addClass("delete").text("Delete")
             )
         
-        bind: (obj) ->            
+        bind: (obj) ->
+            view = @
             elem = @elem
             resource = @resource
             elem.find(".controls a.edit"   ).bind "click", ()->    elem.addClass "editmode"
@@ -188,13 +219,18 @@ define ['jquery', 'cs!notifier', "object.watch"], ($, notifier) ->
             elem.find(".controls a.submit").bind "click", () ->            
                 elem.removeClass "editmode"
                 elem.addClass "submitmode"
-                resource.put obj, ()->
-                    elem.removeClass "submitmode"            
+                if obj.id
+                    resource.put obj, ()->
+                        elem.removeClass "submitmode"
+                else
+                    resource.post obj, ()->
+                        elem.removeClass "submitmode"
                                 
-            elem.find('.controls a.delete').bind "clicks", () ->
+            elem.find('.controls a.delete').bind "click", () ->
                 elem.removeClass "editmode"
                 elem.addClass "submitmode"
                 resource.delete obj, ()->
+                    view.bind(resource.empty())
                     elem.removeClass "submitmode"
 
             App.bind(@, obj)

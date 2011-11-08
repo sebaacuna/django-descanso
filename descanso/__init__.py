@@ -39,6 +39,22 @@ class api:
 
             def __init__(self):
                 piston.handler.BaseHandler.__init__(self)
+                
+            def create(self, request, *args, **kwargs):
+                   if not self.has_model():
+                       return rc.NOT_IMPLEMENTED
+
+                   attrs = self.flatten_dict(request.data)
+
+                   try:
+                       #inst = self.queryset(request).get(**attrs)
+                       #return rc.DUPLICATE_ENTRY
+                   #except self.model.DoesNotExist:
+                       inst = self.model(**attrs)
+                       inst.save()
+                       return inst
+                   except self.model.MultipleObjectsReturned:
+                       return rc.DUPLICATE_ENTRY
 
             @staticmethod
             def resource_uri(data):
@@ -61,7 +77,7 @@ class api:
                             'choices' : dict(f.choices),
                             'type' : f.__class__.__name__,
                             'verbose_name' : f.verbose_name.capitalize(),
-                         } for f in m._meta.fields ],
+                         } for f in m._meta.fields if not f.primary_key ],
 
                     } for m in myapi.models ]
         return MetaHandler
