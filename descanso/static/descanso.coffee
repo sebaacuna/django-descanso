@@ -18,10 +18,11 @@ define ['jquery', 'cs!notifier', "object.watch"], ($, notifier) ->
                 cls = Resource
             @resources[metadata.name] = new cls( @server_url, metadata)
 
-        bind: (elem, obj) ->
-
+        bind: (view, obj) ->
+            view.bind obj
+            
             dom_notifier    = new notifier.Notifier()
-            dom_updater     = @domUpdater(elem)
+            dom_updater     = @domUpdater(view.elem)
             
             object_notifier     = new notifier.Notifier()
             object_updater     = @objectUpdater(obj)
@@ -30,7 +31,7 @@ define ['jquery', 'cs!notifier', "object.watch"], ($, notifier) ->
             object_notifier.addListener(dom_updater)
             
             # Find all bindable nodes under the root binding element
-            $("#"+elem.attr("id") + " [bind]").each (i, node) ->
+            view.elem.find("[bind]").each (i, node) ->
                 tagName = node.tagName
                 node = $(node)
                 path = node.attr("bind").trim().split(" ")
@@ -76,7 +77,7 @@ define ['jquery', 'cs!notifier', "object.watch"], ($, notifier) ->
             return {
                 "change" : (args) ->
                     console.log "Updating element"
-                    $('#'+target.attr("id") + ' [bind="'+args.path.join(" ")+'"]').each (i,node) ->
+                    $(target).find('[bind="'+args.path.join(" ")+'"]').each (i,node) ->
                         if node.tagName == "INPUT"
                             $(node).val(args.value)
                         else
@@ -87,16 +88,9 @@ define ['jquery', 'cs!notifier', "object.watch"], ($, notifier) ->
             app = @
             resource = @resources[resource]
             resource.get id, (obj) ->
-                
-                #form = resource.form()
-                #form.append $("<div>").addClass("descanso-form-controls").append $('<input type="button" value="Send"/>').bind "click", (event)->
-                #    resource.put obj
-
-                #form.attr "id", app.name 
-                #$("#"+app.name).replaceWith form 
-                view = new ResourcePaneView(resource).view(obj)
-                view.attr "id", app.name 
-                $("#"+app.name).replaceWith view
+                view = new ResourcePaneView(resource)
+                view.elem.attr "id", app.name 
+                $("#"+app.name).replaceWith view.elem
                 app.bind view, obj
 
 
@@ -124,23 +118,33 @@ define ['jquery', 'cs!notifier', "object.watch"], ($, notifier) ->
             return dict
             
         member_url: (obj_or_id) ->
-            if obj_or_id.id
-                id = obj_or_id.id
+            if typeof obj_or_id == 'object'
+                if obj_or_id.id
+                    id = obj_or_id.id
+                else
+                    return @server_url + @url
             else
                 id = obj_or_id
+                
             return @server_url + [@url, id ].join "/"
+
+
+        post: (obj, callback) ->
+            r =@
+            @ajax "POST", obj, (data) ->
+                r.repo[data.id] = data
+                callback data
 
         get: (id, callback) ->
             r = @
             @ajax "GET", id, (data) ->
-                r.repo[id] = r.dict(data)
+                r.repo[id] = data
                 callback data
-            
 
         put: (obj, callback) ->
             r = @
             @ajax "PUT", obj, (data) ->
-                r.repo[obj.id] = r.dict(obj)
+                r.repo[obj.id] = obj
                 callback data
 
         delete: (obj, callback) ->
@@ -148,7 +152,7 @@ define ['jquery', 'cs!notifier', "object.watch"], ($, notifier) ->
             @ajax "DELETE", obj, (data) ->
                 delete r.repo[obj.id]
                 callback data
- 
+                
         ajax: (method, obj, callback) ->
             args =
                 success: (data, textStatus, jqXHR) ->
@@ -165,31 +169,37 @@ define ['jquery', 'cs!notifier', "object.watch"], ($, notifier) ->
     class ResourcePaneView
         
         constructor: (@resource) ->
-        
-        view: (obj) ->
-            view = $("<form />").addClass "descanso"
-            resource = @resource
+            @elem = $("<form />").addClass "descanso"
             for field, i in @resource.fields
                 row = $("<div />").addClass("property")
-                view.append row
-                row.append $("<div />").addClass("fieldName").text( field.verbose_name )
-                row.append $("<input />").attr("bind", field.name).addClass("valueInput"), $("<div>").attr("bind", field.name).addClass("valueDisplay")
+                @elem.append row
+                row.append $("<div>"    ).addClass("fieldName").text( field.verbose_name )
+                row.append $("<input>"  ).attr("bind", field.name).addClass("valueInput")
+                row.append $("<div>"    ).attr("bind", field.name).addClass("valueDisplay")
                     
-            view.append $("<div>").addClass("controls").append(
-                $("<a/>").addClass("edit").text("Edit").bind "click", ()-> view.addClass "editmode"
-                $("<a/>").addClass("submit").text("Submit").bind "click", ()->
-                    view.removeClass "editmode"
-                    view.addClass "submitmode"
-                    resource.put obj, ()->
-                        view.removeClass "submitmode"
-                $("<a/>").addClass("cancel").text("Cancel").bind "click", ()-> view.removeClass "editmode"
-                $("<a/>").addClass("delete").text("Delete").bind "click", ()-> 
-                    view.removeClass "editmode"
-                    view.addClass "submitmode"
-                    resource.delete obj, ()->
-                        view.removeClass "submitmode"
+            @elem.append $("<div>").addClass("controls").append(
+                $("<a/>").addClass("edit").text("Edit")
+                $("<a/>").addClass("submit").text("Submit")
+                $("<a/>").addClass("cancel").text("Cancel")
+                $("<a/>").addClass("delete").text("Delete")
             )
-                        
-            return view
+        
+        bind: (obj) ->            
+            elem = @elem
+            resource = @resource
+            elem.find(".controls a.edit"   ).bind "click", ()->    elem.addClass "editmode"
+            elem.find(".controls a.cancel" ).bind "click", () ->   elem.removeClass "editmode"
+
+            elem.find(".controls a.submit").bind "click", () ->            
+                elem.removeClass "editmode"
+                elem.addClass "submitmode"
+                resource.put obj, ()->
+                    elem.removeClass "submitmode"            
+                                
+            elem.find('.controls a.delete').bind "clicks", () ->
+                elem.removeClass "editmode"
+                elem.addClass "submitmode"
+                resource.delete obj, ()->
+                    elem.removeClass "submitmode"
 
     return  { "App": App }
