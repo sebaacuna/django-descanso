@@ -7,8 +7,10 @@ define ["jquery", "cs!descanso"], ($, descanso) ->
             @name = "demo"
 
         run: ->
-            app = @
-            @loadResources ()->
-                app.formRender 'person', 1
+            @loadResources (app)->
+                app.resources.person.get 1, (obj) ->
+                    view = new descanso.ResourcePaneView(app.resources.person)
+                    view.bind(obj)
+                    app.renderView app.name, view
 
     return { "Demo": Demo }

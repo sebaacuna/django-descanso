@@ -18,51 +18,20 @@ define ['jquery', 'cs!notifier', "object.watch"], ($, notifier) ->
                 cls = Resource
             @resources[metadata.name] = new cls( @server_url, metadata)
 
-        bind: (view, obj) ->
-            view.bind obj
-            
-            dom_notifier    = new notifier.Notifier()
-            dom_updater     = @domUpdater(view.elem)
-            
-            object_notifier     = new notifier.Notifier()
-            object_updater     = @objectUpdater(obj)
-            
-            dom_notifier.addListener(object_updater)
-            object_notifier.addListener(dom_updater)
-            
-            # Find all bindable nodes under the root binding element
-            view.elem.find("[bind]").each (i, node) ->
-                tagName = node.tagName
-                node = $(node)
-                path = node.attr("bind").trim().split(" ")
-                path_cpy = path.slice(0) # A copy of the array
-                target = obj
-                
-                #Initialize element
-                while path.length > 1
-                    target = target[path.shift()]
+        renderView: ( id, view ) ->
+            view.elem.attr "id", id
+            $("#"+id).replaceWith view.elem
 
-                key = path.shift()
-                
-                if tagName == "INPUT"
-                    node.val target[key]
+        loadResources: ( callback ) ->
+            app = @
+            $.ajax @server_url + @api_url + @meta_resources_url,
+                success: (data, textStatus, jqXHR) ->
+                    for res in data
+                        app.addResource res
+                    callback(app)
+                dataType: "json"
 
-                    # Set listeners from DOM to monitored obejct
-                    node.bind 'change', (event) ->
-                        dom_notifier.notifyAll 'change', { path: path_cpy , value: $(event.target).val() }
-                else
-                    node.text target[key]
-
-            
-            # Watch object events
-            fields = []
-            fields.push k for own k of obj
-            for k in fields
-                obj.watch k, (k, oldval, newval) ->
-                    object_notifier.notifyAll 'change', { path: [k], value: newval }
-                    return newval
-            
-        objectUpdater: (target) ->
+        @objectUpdater: (target) ->
             return {
                 "change": (args) ->
                     console.log "Updating object"
@@ -72,8 +41,8 @@ define ['jquery', 'cs!notifier', "object.watch"], ($, notifier) ->
                         obj = obj[args.path[i++]]
                     obj[args.path[i]] = args.value
                 }
-        
-        domUpdater: (target) ->
+
+        @domUpdater: (target) ->
             return {
                 "change" : (args) ->
                     console.log "Updating element"
@@ -83,25 +52,51 @@ define ['jquery', 'cs!notifier', "object.watch"], ($, notifier) ->
                         else
                             $(node).text(args.value)
             }
-            
-        formRender: ( resource, id ) ->
-            app = @
-            resource = @resources[resource]
-            resource.get id, (obj) ->
-                view = new ResourcePaneView(resource)
-                view.elem.attr "id", app.name 
-                $("#"+app.name).replaceWith view.elem
-                app.bind view, obj
+
+        @bind: (view, obj) ->
+
+            dom_notifier    = new notifier.Notifier()
+            dom_updater     = @domUpdater(view.elem)
+
+            object_notifier     = new notifier.Notifier()
+            object_updater     = @objectUpdater(obj)
+
+            dom_notifier.addListener(object_updater)
+            object_notifier.addListener(dom_updater)
+
+            # Find all bindable nodes under the root binding element
+            view.elem.find("[bind]").each (i, node) ->
+                tagName = node.tagName
+                node = $(node)
+                path = node.attr("bind").trim().split(" ")
+                path_cpy = path.slice(0) # A copy of the array
+                target = obj
+
+                #Initialize element
+                while path.length > 1
+                    target = target[path.shift()]
+
+                key = path.shift()
+
+                if tagName == "INPUT"
+                    node.val target[key]
+
+                    # Set listeners from DOM to monitored obejct
+                    node.bind 'change', (event) ->
+                        dom_notifier.notifyAll 'change', { path: path_cpy , value: $(event.target).val() }
+                else
+                    node.text target[key]
 
 
-        loadResources: ( callback ) ->
-            app = @
-            $.ajax @server_url + @api_url + @meta_resources_url,
-                success: (data, textStatus, jqXHR) ->
-                    for res in data
-                        app.addResource res
-                    callback()
-                dataType: "json"
+            # Watch object events
+            fields = []
+            fields.push k for own k of obj
+            for k in fields
+                obj.watch k, (k, oldval, newval) ->
+                    object_notifier.notifyAll 'change', { path: [k], value: newval }
+                    return newval
+
+
 
             
     class Resource
@@ -202,4 +197,6 @@ define ['jquery', 'cs!notifier', "object.watch"], ($, notifier) ->
                 resource.delete obj, ()->
                     elem.removeClass "submitmode"
 
-    return  { "App": App }
+            App.bind(@, obj)
+
+    return  { "App": App, "ResourcePaneView": ResourcePaneView }
