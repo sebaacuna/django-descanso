@@ -153,14 +153,23 @@ define ['jquery', 'cs!notifier', 'jquery.tmpl.min'], ($, notifier) ->
             @subviews = []
             @parentView = null
             @notifier = new notifier.Notifier()
+            @templates = {}
         
-        setTemplate: (@template_id) ->
+        ###
+        Expect a dictionary of { template_name: template_id }
+        template_name is one of the names relevant to the view
+        template_id is the id of the template container on the DOM
+        ###
+        setTemplate: (@templates) ->
             
-        jqElem: () ->
-            return $("#"+@template_id).tmpl @
+        ###
+        Create and return a DOM element for the given template name
+        ###
+        element: ( name = "view" ) ->
+            return @elem = $("#"+@templates[name]).tmpl @
             
         bind: (@obj) ->
-            @elem = @jqElem()
+            @elem = @element()
             domUpdater = () =>
                 return {
                     "change" : (args) =>
@@ -218,12 +227,6 @@ define ['jquery', 'cs!notifier', 'jquery.tmpl.min'], ($, notifier) ->
         constructor: (resource) ->
             super resource
         
-        jqElem: () ->
-            elem = $("<tr>")
-            for field, i in @resource.fields
-                elem.append $("<td>").attr "bind", field.name
-            return elem
-                
         bind: (obj) ->
             super obj
             @elem.attr "id", obj.id
@@ -237,53 +240,28 @@ define ['jquery', 'cs!notifier', 'jquery.tmpl.min'], ($, notifier) ->
         constructor: (resource) ->
             super resource
         
-        _jqElem: ()->
-            headrow = $("<tr>")
-            for field, i in @resource.fields
-                headrow.append $("<th>").text(field.name)
-                
-            thead =     $("<thead>").append headrow
-            @tbody =    $("<tbody>")
-            elem =     $("<table>").addClass "resourcelist view"
-            elem.append thead, @tbody
-            return elem
-            
         bind: (obj_list) ->
-            @elem = @jqElem()
-            contents = @elem.find(".contents")
+            @elem = @element()
+            items = @elem.find(".items")
             for obj in obj_list
-                @attachView rowview = new ResourceListItemView(@resource)
+                rowview = new ResourceListItemView(@resource)
+                rowview.setTemplate { view: @templates["items"] }
+                @attachView rowview
                 rowview.bind obj
-                contents.append rowview.elem
+                items.append rowview.elem
 
 
     class ResourcePaneView extends ResourceView
         
         constructor: (resource) ->
             super resource
-            
-        _jqElem: () ->
-            elem = $("<form />").addClass "resourcepane view"
-
-            for field, i in @resource.fields
-                row = $("<div />").addClass("property")
-                elem.append row
-                row.append $("<div>"    ).addClass("fieldName").text( field.verbose_name )
-                row.append $("<input>"  ).attr("bind", field.name).addClass("valueInput")
-                row.append $("<div>"    ).attr("bind", field.name).addClass("valueDisplay")
-                    
-            elem.append $("<div>").addClass("controls").append(
-                $("<a/>").addClass("edit").text("Edit")
-                $("<a/>").addClass("submit").text("Submit")
-                $("<a/>").addClass("cancel").text("Cancel")
-                $("<a/>").addClass("delete").text("Delete")
-            )
-            return elem
         
         bind: (obj) ->
             super obj
             elem = @elem
             resource = @resource
+            
+            # Bind DOM events
             elem.find(".controls a.edit"   ).bind "click", ()->    elem.addClass "editmode"
             elem.find(".controls a.cancel" ).bind "click", () ->   elem.removeClass "editmode"
 

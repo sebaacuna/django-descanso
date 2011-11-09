@@ -16,14 +16,14 @@
 				{{/each}}
 			</tr>
 		</thead>
-		<tbody class="contents">
+		<tbody class="items">
 		</tbody>
 	</table>
 	</script>
 	
 	<script id="template-resourcelistitem" type="x-jquery-tmpl/html">
 	<tr>
-		{{each fields}}
+		{{each resource.fields}}
 		<td bind="${$value.name}"></td>
 		{{/each}}
 	</tr>
