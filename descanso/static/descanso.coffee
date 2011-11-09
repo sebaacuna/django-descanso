@@ -155,6 +155,7 @@ define ['jquery', 'cs!notifier'], ($, notifier) ->
             @notifier = new notifier.Notifier()
             
         bind: (@obj) ->
+            @elem = @jqElem()
             domUpdater = () =>
                 return {
                     "change" : (args) =>
@@ -211,32 +212,39 @@ define ['jquery', 'cs!notifier'], ($, notifier) ->
         
         constructor: (resource) ->
             super resource
-            @elem = $("<tr>")
-            for field, i in resource.fields
-                @elem.append $("<td>").attr "bind", field.name
+        
+        jqElem: () ->
+            elem = $("<tr>")
+            for field, i in @resource.fields
+                elem.append $("<td>").attr "bind", field.name
+            return elem
                 
         bind: (obj) ->
+            super obj
             @elem.attr "id", obj.id
             @elem.bind "click", (event)=>
                 if @parentView                    
                     @parentView.triggerEvent "select", obj
-            super obj
 
 
     class ResourceListView extends ResourceView
         
         constructor: (resource) ->
             super resource
+        
+        jqElem: ()->
             headrow = $("<tr>")
-            for field, i in resource.fields
+            for field, i in @resource.fields
                 headrow.append $("<th>").text(field.name)
                 
             thead =     $("<thead>").append headrow
             @tbody =    $("<tbody>")
-            @elem =     $("<table>").addClass "resourcelist view"
-            @elem.append thead, @tbody
+            elem =     $("<table>").addClass "resourcelist view"
+            elem.append thead, @tbody
+            return elem
             
         bind: (obj_list) ->
+            @elem = @jqElem()
             view = @
             for obj in obj_list
                 @attachView rowview = new ResourceListItemView(@resource)
@@ -248,23 +256,27 @@ define ['jquery', 'cs!notifier'], ($, notifier) ->
         
         constructor: (resource) ->
             super resource
-            @elem = $("<form />").addClass "resourcepane view"
+            
+        jqElem: () ->
+            elem = $("<form />").addClass "resourcepane view"
 
-            for field, i in resource.fields
+            for field, i in @resource.fields
                 row = $("<div />").addClass("property")
-                @elem.append row
+                elem.append row
                 row.append $("<div>"    ).addClass("fieldName").text( field.verbose_name )
                 row.append $("<input>"  ).attr("bind", field.name).addClass("valueInput")
                 row.append $("<div>"    ).attr("bind", field.name).addClass("valueDisplay")
                     
-            @elem.append $("<div>").addClass("controls").append(
+            elem.append $("<div>").addClass("controls").append(
                 $("<a/>").addClass("edit").text("Edit")
                 $("<a/>").addClass("submit").text("Submit")
                 $("<a/>").addClass("cancel").text("Cancel")
                 $("<a/>").addClass("delete").text("Delete")
             )
+            return elem
         
         bind: (obj) ->
+            super obj
             elem = @elem
             resource = @resource
             elem.find(".controls a.edit"   ).bind "click", ()->    elem.addClass "editmode"
@@ -287,7 +299,6 @@ define ['jquery', 'cs!notifier'], ($, notifier) ->
                     @bind(resource.empty())
                     elem.removeClass "submitmode"
 
-            super obj
 
     return {
         "App": App
