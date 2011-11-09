@@ -30,42 +30,7 @@ define ['jquery', 'cs!notifier'], ($, notifier) ->
                         @addResource res
                     callback(app)
                 dataType: "json"
-
-        @objectUpdater: (target) ->
-            return {
-                "change": (args) ->
-                    console.log "Updating object"
-                    obj = target
-                    i = 0
-                    while i < args.path.length - 1
-                        obj = obj[args.path[i++]]
-                    obj[args.path[i]] = args.value
-                }
-
-        @domUpdater: (target) ->
-            return {
-                "change" : (args) ->
-                    console.log "Updating element"
-                    $(target).find('[bind="'+args.path.join(" ")+'"]').each (i,node) ->
-                        if node.tagName == "INPUT"
-                            $(node).val args.value
-                        else
-                            $(node).text args.value
-            }
-
-        @bind: (view, obj) ->
-
-#            dom_notifier    = new notifier.Notifier()
-
-#            object_notifier     = new notifier.Notifier()
-#            object_updater     = @objectUpdater obj
-
-#            dom_notifier.addListener object_updater
-#            object_notifier.addListener @domUpdater view.elem
-
-            # Find all bindable nodes under the root binding element
-
-
+                
             
     class Resource
         
@@ -234,40 +199,37 @@ define ['jquery', 'cs!notifier'], ($, notifier) ->
         
         constructor: (resource) ->
             super resource
-            
             @elem = $("<tr>")
             for field, i in resource.fields
                 @elem.append $("<td>").attr "bind", field.name
                 
         bind: (obj) ->
             @elem.attr "id", obj.id
+            @elem.bind "click", (event)->
+                console.log "Clicked ", obj
+                event.data = { obj: obj }
+                $(event.target).parent().click()
             super obj
 
-    
+
     class ResourceListView extends ResourceView
         
         constructor: (resource) ->
             super resource
-            
-#            @entities = {}
-
             headrow = $("<tr>")
             for field, i in resource.fields
                 headrow.append $("<th>").text(field.name)
                 
-            thead = $("<thead>").append headrow
-            @tbody = $("<tbody>")
-            @elem = $("<table>").addClass "resourcelist view"
+            thead =     $("<thead>").append headrow
+            @tbody =    $("<tbody>")
+            @elem =     $("<table>").addClass "resourcelist view"
             @elem.append thead, @tbody
             
         bind: (obj_list) ->
             view = @
             for obj in obj_list
-#                @entities[obj.id] = obj
                 rowview = new ResourceListItemView(@resource)
                 rowview.bind obj
-                rowview.elem.bind "click", (event)->
-                    view.onSelect obj
                 @tbody.append rowview.elem
 
 
