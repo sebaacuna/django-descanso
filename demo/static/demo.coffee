@@ -12,8 +12,8 @@ define ["jquery", "cs!descanso"], ($, descanso) ->
                 paneview = new descanso.ResourcePaneView(app.resources.person)
                 app.resources.person.list (obj) ->
                     listview.bind obj
-                    listview.elem.bind "click", (event) ->
-                        paneview.bind event.data.obj
+                    listview.bindEvent "select", (obj) ->
+                        paneview.bind obj
                         app.renderView "#person_pane", paneview
                         
                     app.renderView "#person_list", listview

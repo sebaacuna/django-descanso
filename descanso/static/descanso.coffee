@@ -150,7 +150,9 @@ define ['jquery', 'cs!notifier'], ($, notifier) ->
     class ResourceView
         
         constructor: (@resource) ->
-            @fields = @resource.fields
+            @subviews = []
+            @parentView = null
+            @notifier = new notifier.Notifier()
             
         bind: (@obj) ->
             domUpdater = () =>
@@ -185,6 +187,16 @@ define ['jquery', 'cs!notifier'], ($, notifier) ->
                         @updateObject { path: path_cpy , value: $(event.target).val() }
                 else
                     node.text target[key]
+            
+        bindEvent: (event, handler) ->
+            @notifier.on event, handler
+            
+        triggerEvent: (event, arg) ->
+            @notifier.notifyAll event, arg
+
+        attachView: (subview) ->
+            @subviews.push subview
+            subview.parentView = @
         
         updateObject: (args) ->
             console.log "Updating object"
@@ -205,10 +217,9 @@ define ['jquery', 'cs!notifier'], ($, notifier) ->
                 
         bind: (obj) ->
             @elem.attr "id", obj.id
-            @elem.bind "click", (event)->
-                console.log "Clicked ", obj
-                event.data = { obj: obj }
-                $(event.target).parent().click()
+            @elem.bind "click", (event)=>
+                if @parentView                    
+                    @parentView.triggerEvent "select", obj
             super obj
 
 
@@ -228,7 +239,7 @@ define ['jquery', 'cs!notifier'], ($, notifier) ->
         bind: (obj_list) ->
             view = @
             for obj in obj_list
-                rowview = new ResourceListItemView(@resource)
+                @attachView rowview = new ResourceListItemView(@resource)
                 rowview.bind obj
                 @tbody.append rowview.elem
 
