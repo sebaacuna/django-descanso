@@ -1,4 +1,4 @@
-define ['jquery', 'cs!notifier'], ($, notifier) ->
+define ['jquery', 'cs!notifier', 'jquery.tmpl.min'], ($, notifier) ->
     class App
         
         constructor: ->
@@ -153,6 +153,11 @@ define ['jquery', 'cs!notifier'], ($, notifier) ->
             @subviews = []
             @parentView = null
             @notifier = new notifier.Notifier()
+        
+        setTemplate: (@template_id) ->
+            
+        jqElem: () ->
+            return $("#"+@template_id).tmpl @
             
         bind: (@obj) ->
             @elem = @jqElem()
@@ -232,7 +237,7 @@ define ['jquery', 'cs!notifier'], ($, notifier) ->
         constructor: (resource) ->
             super resource
         
-        jqElem: ()->
+        _jqElem: ()->
             headrow = $("<tr>")
             for field, i in @resource.fields
                 headrow.append $("<th>").text(field.name)
@@ -245,11 +250,11 @@ define ['jquery', 'cs!notifier'], ($, notifier) ->
             
         bind: (obj_list) ->
             @elem = @jqElem()
-            view = @
+            contents = @elem.find(".contents")
             for obj in obj_list
                 @attachView rowview = new ResourceListItemView(@resource)
                 rowview.bind obj
-                @tbody.append rowview.elem
+                contents.append rowview.elem
 
 
     class ResourcePaneView extends ResourceView
@@ -257,7 +262,7 @@ define ['jquery', 'cs!notifier'], ($, notifier) ->
         constructor: (resource) ->
             super resource
             
-        jqElem: () ->
+        _jqElem: () ->
             elem = $("<form />").addClass "resourcepane view"
 
             for field, i in @resource.fields
