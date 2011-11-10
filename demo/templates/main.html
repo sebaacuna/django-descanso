@@ -8,6 +8,15 @@
 
 {% raw %}
 	<script id="template-resourcelist" type="x-jquery-tmpl/html">
+	<select class="items">
+	</select>
+	</script>
+
+	<script id="template-resourcelistitem" type="x-jquery-tmpl/html">
+	<option bind="name"></option>
+	</script>
+
+	<script id="template-entitylist" type="x-jquery-tmpl/html">
 	<table class="resourcelist view">
 		<thead>
 			<tr>
@@ -21,7 +30,7 @@
 	</table>
 	</script>
 	
-	<script id="template-resourcelistitem" type="x-jquery-tmpl/html">
+	<script id="template-entitylistitem" type="x-jquery-tmpl/html">
 	<tr>
 		{{each resource.fields}}
 		<td bind="${$value.name}"></td>
@@ -29,7 +38,7 @@
 	</tr>
 	</script>
 
-	<script id ="template-resourcepane" type="x-jquery-tmpl/html">
+	<script id ="template-entitypane" type="x-jquery-tmpl/html">
 	<form class="resourcepane view">
 		{{each resource.fields}}
 		<div class="property">
@@ -50,9 +59,11 @@
 
 </head>
 <body>
+<div id="resource_list">
+</div>
 <div id="demo" >
-	<div id="person_list"></div>
-	<div id="person_pane"></div>	
+	<div id="entity_list"></div>
+	<div id="entity_pane"></div>	
 	
 </div>
 <script type="text/javascript">

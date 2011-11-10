@@ -24,17 +24,28 @@ define ['jquery', 'cs!notifier', 'jquery.tmpl.min'], ($, notifier) ->
             elem.append(view.elem)
 
         loadResources: ( callback ) ->
-            $.ajax @server_url + @api_url + @meta_resources_url,
+            meta_url = @server_url + @api_url + @meta_resources_url
+            # Meta-resource
+            delete @resources["_resources"]
+            @addResource
+                name: '_resources'
+                url: meta_url
+                fields:
+                    name: ''
+                    fields: ''
+                    url: ''
+                    
+            $.ajax meta_url,
                 success: (data, textStatus, jqXHR) =>
                     for res in data
                         @addResource res
                     callback(app)
                 dataType: "json"
-                
             
     class Resource
         
         constructor: (@server_url, metadata) ->
+            @id = metadata.name
             @name = metadata.name
             @url = metadata.url
             @fields = metadata.fields
@@ -68,20 +79,13 @@ define ['jquery', 'cs!notifier', 'jquery.tmpl.min'], ($, notifier) ->
                 callback list
 
         post: (obj, callback) ->
-            @ajax "POST", obj, (data) =>
-                #@repo[data.id] = data
-                callback @entity data
+            @ajax "POST", obj, (data) => callback @entity data
 
         get: (id, callback) ->
-            @ajax "GET", id, (data) =>
-                #@repo[id] = data
-                callback @entity data
+            @ajax "GET", id, (data) => callback @entity data
 
         put: (obj, callback) ->
-            @ajax "PUT", obj, (data) =>
-                #@repo[obj.id] = obj
-                #@entity obj
-                callback obj
+            @ajax "PUT", obj, (data) => callback obj
 
         delete: (obj, callback) ->
             @ajax "DELETE", obj, (data) =>
@@ -100,9 +104,7 @@ define ['jquery', 'cs!notifier', 'jquery.tmpl.min'], ($, notifier) ->
                 
             $.ajax @member_url(obj), args
             
-            
-        entity: (obj) ->
-            
+        addToRepo: (obj) ->
             if @repo[obj.id]
                 return @repo[obj.id]
             
@@ -110,14 +112,15 @@ define ['jquery', 'cs!notifier', 'jquery.tmpl.min'], ($, notifier) ->
             @repo[obj.id] = 
                 notifier: obj_notifier 
                 entity: obj
-            
+
+        entity: (obj) ->
+            @addToRepo obj
             # Watch object events
             for field in @fields
                 #Callback to be invoked upon object property setting
                 @addHandler obj, field.name, (k, oldval, newval) ->
-                    obj_notifier.notifyAll 'change', { path: [k], value: newval }
+                    @repo[obj.id].notifier.notifyAll 'change', { path: [k], value: newval }
                     return newval
-            
             return obj
 
 
@@ -150,7 +153,7 @@ define ['jquery', 'cs!notifier', 'jquery.tmpl.min'], ($, notifier) ->
     class ResourceView
         
         constructor: (@resource) ->
-            @subviews = []
+            @subviews = {}
             @parentView = null
             @notifier = new notifier.Notifier()
             @templates = {}
@@ -159,32 +162,55 @@ define ['jquery', 'cs!notifier', 'jquery.tmpl.min'], ($, notifier) ->
         Expect a dictionary of { template_name: template_id }
         template_name is one of the names relevant to the view
         template_id is the id of the template container on the DOM
+        
+        If only a template id is received, the template name "view" is 
+        inferred
         ###
-        setTemplate: (@templates) ->
+        setTemplate: (templates) ->
+            if typeof templates == "object"
+                @templates = templates
+            else
+                @templates['view'] = templates
+
             
         ###
         Create and return a DOM element for the given template name
         ###
         element: ( name = "view" ) ->
-            return @elem = $("#"+@templates[name]).tmpl @
+            @elem = $("#"+@templates[name]).tmpl @
+            # Subview attachment point
+            for name, subviews of @subviews
+                if @elem.hasClass name
+                    attachPoint = @elem
+                else
+                    attachPoint = @elem.find "." + name
+                attachPoint.append sv.elem for sv in subviews
+            return @elem
+            
             
         bind: (@obj) ->
             @elem = @element()
-            domUpdater = () =>
-                return {
-                    "change" : (args) =>
-                        console.log "Updating element"
-                        $(@elem).find('[bind="'+args.path.join(" ")+'"]').each (i,node) ->
-                            if node.tagName == "INPUT"
-                                $(node).val args.value
-                            else
-                                $(node).text args.value
-                }
-            @resource.repo[obj.id].notifier.addListener domUpdater @elem
-            
-            @elem.find("[bind]").each (i, node) =>
+
+            # HACK - This prevents setting a domUpdater directed towards the
+            # resource repo when the resource is the meta resource 
+            # (_resources) :/
+            if @resource.repo[obj.id]
+                domUpdater = () =>
+                    return {
+                        "change" : (args) =>
+                            console.log "Updating element"
+                            $(@elem).find('[bind="'+args.path.join(" ")+'"]').each (i,node) ->
+                                if node.tagName == "INPUT"
+                                    $(node).val args.value
+                                else
+                                    $(node).text args.value
+                    }
+                @resource.repo[obj.id].notifier.addListener domUpdater @elem
+
+            bindNode = (i, node) =>
                 tagName = node.tagName
                 node = $(node)
+                return unless $(node).attr("bind")?
                 path = node.attr("bind").trim().split(" ")
                 path_cpy = path.slice(0) # A copy of the array
                 target = obj
@@ -203,14 +229,19 @@ define ['jquery', 'cs!notifier', 'jquery.tmpl.min'], ($, notifier) ->
                 else
                     node.text target[key]
             
+            $(@elem).each bindNode
+            $(@elem).find("[bind]").each bindNode
+            
         bindEvent: (event, handler) ->
             @notifier.on event, handler
             
         triggerEvent: (event, arg) ->
             @notifier.notifyAll event, arg
 
-        attachView: (subview) ->
-            @subviews.push subview
+        attachView: (name, subview) ->
+            @subviews[name] ?= []
+            @subviews[name].push subview
+            subview.setTemplate @templates[name]
             subview.parentView = @
         
         updateObject: (args) ->
@@ -241,15 +272,11 @@ define ['jquery', 'cs!notifier', 'jquery.tmpl.min'], ($, notifier) ->
             super resource
         
         bind: (obj_list) ->
-            @elem = @element()
-            items = @elem.find(".items")
             for obj in obj_list
                 rowview = new ResourceListItemView(@resource)
-                rowview.setTemplate { view: @templates["items"] }
-                @attachView rowview
+                @attachView "items", rowview
                 rowview.bind obj
-                items.append rowview.elem
-
+            @elem = @element()
 
     class ResourcePaneView extends ResourceView
         

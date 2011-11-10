@@ -69,7 +69,7 @@ class api:
             allowed_methods = ('GET')
 
             def read(self, request, *args, **kwargs):
-                return [ { 
+                resources = [ { 
                         'name' : api.resource_name(m), 
                         'url': reverse( '%s-list' % api.resource_name(m) ),
                         'fields': [ { 
@@ -80,5 +80,13 @@ class api:
                          } for f in m._meta.fields if not f.primary_key ],
 
                     } for m in myapi.models ]
+                    
+#                resources += [ {
+#                    'name': '_resources',
+#                    'url' : reverse( "resources-view" ),
+#                    'fields' : [ { 'name' : 'name'}, { 'name' : 'url' } ]
+#                    } 
+#                ]
+                return resources
         return MetaHandler
 
