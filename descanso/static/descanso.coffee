@@ -10,7 +10,7 @@ define ['jquery', 'cs!notifier', 'jquery.tmpl.min'], ($, notifier) ->
         addResource: (metadata, cls) ->
             if !cls
                 cls = Resource
-            @resources[metadata.name] = new cls( @server_url, metadata)
+            @resources[metadata.name] = new cls( @, metadata)
 
         renderView: ( selector, view ) ->
             elem = $(selector)
@@ -24,11 +24,11 @@ define ['jquery', 'cs!notifier', 'jquery.tmpl.min'], ($, notifier) ->
             @addResource
                 name: '_resources'
                 url: meta_url
-                fields:
-                    name: ''
-                    fields: ''
-                    url: ''
-                    
+                fields: [
+                    { name: "name"},
+                    { name: "fields"},
+                    { name: "url" },
+                ]
             $.ajax meta_url,
                 success: (data, textStatus, jqXHR) =>
                     for res in data
@@ -38,11 +38,14 @@ define ['jquery', 'cs!notifier', 'jquery.tmpl.min'], ($, notifier) ->
             
     class Resource
         
-        constructor: (@server_url, metadata) ->
+        constructor: (@app, metadata) ->
+            @server_url = @app.server_url
             @id = metadata.name
             @name = metadata.name
             @url = metadata.url
             @fields = metadata.fields
+            @fields_dict = {}
+            @fields_dict[f.name] = f for f in @fields
             @repo = {}
 
         empty: () ->
@@ -185,9 +188,12 @@ define ['jquery', 'cs!notifier', 'jquery.tmpl.min'], ($, notifier) ->
         bind: (@obj) ->
             @elem = @element()
 
-
-            updateNode = (node, obj) ->
-                if node.tagName == "INPUT"
+            updateNode = (node, obj, field) =>
+                
+                if subresource = @resource.fields_dict[field].to
+                    # Foreign Key. Embedded subview should be used
+                    
+                else if node.tagName == "INPUT"
                     $(node).val obj
                 else
                     $(node).text obj
@@ -200,7 +206,8 @@ define ['jquery', 'cs!notifier', 'jquery.tmpl.min'], ($, notifier) ->
                     return {
                         "change" : (args) =>
                             console.log "Updating element"
-                            $(@elem).find('[bind="'+args.path.join(" ")+'"]').each (i,node) -> updateNode node, args.value
+                            field = args.path[0]
+                            $(@elem).find('[bind="'+field+'"]').each (i,node) -> updateNode node, args.value, field
                     }
                 @resource.repo[obj.id].notifier.addListener domUpdater @elem
 
@@ -212,13 +219,24 @@ define ['jquery', 'cs!notifier', 'jquery.tmpl.min'], ($, notifier) ->
                 target = obj
 
                 #Initialize element
-                while path.length > 1
-                    target = target[path.shift()]
+                #while path.length > 1
+                #    target = target[path.shift()]
+                # Suppporting 1-length paths for now
                 key = path.shift()
 
-                updateNode node, target[key]
+                updateNode node, target[key], key
                 $(node).bind 'change', (event) =>
                     @updateObject { path: path_cpy , value: $(event.target).val() }
+
+                if subresource = @resource.fields_dict[key].to
+                    # Foreign Key. Embedded subview should be used
+                    subview = new ResourceView(@resource.app.resources[subresource])
+                    subview.setTemplate "embed-"+subresource
+                    subview.bind target[key]
+                    embedClass = "embed-"+subresource
+                    $(node).addClass embedClass
+                    @attachView embedClass, [subview]
+                    $(node).append subview.elem
 
             
             $(@elem).each bindNode
@@ -231,17 +249,22 @@ define ['jquery', 'cs!notifier', 'jquery.tmpl.min'], ($, notifier) ->
             @notifier.notifyAll event, arg
 
         attachView: (name, subview) ->
-            @subviews[name] ?= []
-            @subviews[name].push subview
-            subview.setTemplate @templates[name]
-            subview.parentView = @
+            if subview instanceof Array
+                @subviews[name] = []
+                @attachView name, sv for sv in subview
+            else
+                @subviews[name] ?= []
+                @subviews[name].push subview
+                subview.setTemplate @templates[name]
+                subview.parentView = @
         
         updateObject: (args) ->
             console.log "Updating object"
             obj = @obj
             i = 0
-            while i < args.path.length - 1
-                obj = obj[args.path[i++]]
+            #while i < args.path.length - 1
+            #    obj = obj[args.path[i++]]
+            # Suppporting 1-length paths for now
             obj[args.path[i]] = args.value
             
 

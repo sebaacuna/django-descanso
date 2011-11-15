@@ -45,19 +45,29 @@
 	</tr>
 	</script>
 
+	<script id="embed-person" type="x-jquery-tmpl/html">
+	<span bind="firstname"></span>	<span bind="surname"></span>
+	</script>
+	
+	<script id="embed-entrylabel" type="x-jquery-tmpl/html">
+	<span bind="text"></span>
+	</script>
+
 	<script id ="template-entitypane" type="x-jquery-tmpl/html">
 	<form class="resourcepane view">
 		{{each resource.fields}}
 		<div class="property">
 			<div class="fieldName">${$value.verbose_name}</div>
-			<div class="valueDisplay" bind="${$value.name}" ></div>
 			{{if $value.choices}}
 				<select bind="${$value.name}">
 				{{each $value.choices}}
 					<option value="${$index}">${$value}</option>
 				{{/each}}
 				</select>
+			{{else $value.to}}
+				<span bind="${$value.name}"></span>
 			{{else}}
+				<div class="valueDisplay" bind="${$value.name}" ></div>
 				<input class="valueInput" title="${$value.verbose_name}" bind="${$value.name}" />			
 			{{/if}}
 		</div>

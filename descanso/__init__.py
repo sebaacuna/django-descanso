@@ -71,11 +71,12 @@ class api:
             def read(self, request, *args, **kwargs):
                 def field_meta(f):
                     meta = { 
-                        'name' : f.attname,
+                        'name' : f.name,
                         'type' : f.__class__.__name__,
                         'verbose_name' : f.verbose_name.capitalize(),
                      }
                     meta.update( {'choices' : dict(f.choices) }  if f.choices else {} )
+                    meta.update( {'to' : api.resource_name(f.rel.to) }  if f.rel else {} )
                     return meta
                     
                 resources = [ { 
