@@ -189,9 +189,17 @@ define ['jquery', 'cs!notifier', 'jquery.tmpl.min'], ($, notifier) ->
             @elem = @element()
 
             updateNode = (node, obj, field) =>
-                
                 if subresource = @resource.fields_dict[field].to
                     # Foreign Key. Embedded subview should be used
+                    # rebuild subview
+                    subview = new ResourceView(@resource.app.resources[subresource])
+                    subview.setTemplate "embed-"+subresource
+                    subview.bind obj
+                    embedClass = "embed-"+subresource
+                    $(node).addClass embedClass
+                    @attachView embedClass, [subview]
+                    $(node).empty()
+                    $(node).append subview.elem
                     
                 else if node.tagName == "INPUT"
                     $(node).val obj
@@ -228,19 +236,22 @@ define ['jquery', 'cs!notifier', 'jquery.tmpl.min'], ($, notifier) ->
                 $(node).bind 'change', (event) =>
                     @updateObject { path: path_cpy , value: $(event.target).val() }
 
-                if subresource = @resource.fields_dict[key].to
-                    # Foreign Key. Embedded subview should be used
-                    subview = new ResourceView(@resource.app.resources[subresource])
-                    subview.setTemplate "embed-"+subresource
-                    subview.bind target[key]
-                    embedClass = "embed-"+subresource
-                    $(node).addClass embedClass
-                    @attachView embedClass, [subview]
-                    $(node).append subview.elem
 
             
             $(@elem).each bindNode
             $(@elem).find("[bind]").each bindNode
+            
+            # Bind view events
+            $(@elem).find("[view-bind-event]").each (i, node)=>
+                tokens = $(node).attr("view-bind-event").split(" ")
+                [domEvent, viewEvent] = tokens.shift().split(":")
+
+                extra = {}
+                while tokens.length >0
+                    [k, v] = tokens.shift().split(":")
+                    extra[k] = v
+
+                $(node).bind domEvent, ()=> @triggerEvent viewEvent, { obj: @obj, extra: extra }
             
         bindEvent: (event, handler) ->
             @notifier.on event, handler
@@ -276,10 +287,9 @@ define ['jquery', 'cs!notifier', 'jquery.tmpl.min'], ($, notifier) ->
         bind: (obj) ->
             super obj
             @elem.attr "id", obj.id
-            @elem.find(".select").bind "click", (event)=>
-                if @parentView                    
-                    @parentView.triggerEvent "select", obj
-
+            @bindEvent "select", (args)=>
+                if @parentView
+                    @parentView.triggerEvent "select", args
 
     class ResourceListView extends ResourceView
         

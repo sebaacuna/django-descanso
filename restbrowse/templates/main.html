@@ -12,8 +12,8 @@
 	</nav>
 	</script>
 
-	<script id="template-resourcelistitem" type="x-jquery-tmpl/html">
-	<li><a href="#" class="select" bind="name"></a></li>
+	<script id="template-resourcelist-item" type="x-jquery-tmpl/html">
+	<li><a href="#" view-bind-event="click:select" bind="name"></a></li>
 	</script>
 
 	<script id="template-entitylist" type="x-jquery-tmpl/html">
@@ -36,12 +36,12 @@
 	</div>
 	</script>
 	
-	<script id="template-entitylistitem" type="x-jquery-tmpl/html">
+	<script id="template-entitylist-item" type="x-jquery-tmpl/html">
 	<tr>
 		{{each resource.fields}}
 		<td bind="${$value.name}"></td>
 		{{/each}}
-		<td><a href="#" class="select">view</a></td>
+		<td><a href="#" view-bind-event="click:select">view</a></td>
 	</tr>
 	</script>
 
@@ -65,7 +65,7 @@
 				{{/each}}
 				</select>
 			{{else $value.to}}
-				<span bind="${$value.name}"></span>
+				<span bind="${$value.name}"></span><a view-bind-event="click:choose resource:${$value.to} field:${$value.name}" href="#">choose</a>
 			{{else}}
 				<div class="valueDisplay" bind="${$value.name}" ></div>
 				<input class="valueInput" title="${$value.verbose_name}" bind="${$value.name}" />			
@@ -80,6 +80,15 @@
 		</div>
 	</form>
 	</script>
+	
+	<script id="template-chooser-item" type="x-jquery-tmpl/html" >
+		<div><a view-bind-event="click:select" href="#">{{tmpl "#embed-"+resource.name}}</a></div>
+	</script>
+	
+	<script id="template-chooser" type="x-jquery-tmpl/html">
+	<div class="items">
+	</div>
+	</script>
 {% endraw %}
 
 </head>
@@ -91,6 +100,7 @@
 	<div id="entity_pane"></div>	
 	
 </div>
+<div id="chooser"></div>
 <script type="text/javascript">
 require(["main"], function(main) { for(k in main) { window[k] = main[k] } });
 </script>
