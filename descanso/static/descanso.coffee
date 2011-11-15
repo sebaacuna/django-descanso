@@ -192,6 +192,7 @@ define ['jquery', 'cs!notifier', 'jquery.tmpl.min'], ($, notifier) ->
             
         bind: (@obj) ->
             @elem = @element()
+#            return unless @obj?
 
             updateNode = (node, obj, field) =>
                 if subresource = @resource.fields_dict[field].to
@@ -334,7 +335,7 @@ define ['jquery', 'cs!notifier', 'jquery.tmpl.min'], ($, notifier) ->
                     resource.post obj, ()->
                      elem.removeClass "submitmode"
            
-            elem.find('.controls a.delete').bind "click", () ->
+            elem.find('.controls a.delete').bind "click", () =>
                 elem.removeClass "editmode"
                 elem.addClass "submitmode"
                 resource.delete obj, ()=>
