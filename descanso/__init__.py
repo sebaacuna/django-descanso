@@ -22,7 +22,7 @@ class api:
         rn = self.resource_name(model_cls)
         self.registered_urlpatterns += patterns('', 
             url(r'^%s/(?P<id>[^/]+)' % rn, res, kwargs={'emitter_format': 'json'}, name="%s-view" % rn ),
-            url(r'^%s/?' % rn, res, kwargs={'emitter_format': 'json'}, name="%s-list" % rn ),
+            url(r'^%s/?$' % rn, res, kwargs={'emitter_format': 'json'}, name="%s-list" % rn ),
         )
     
     @staticmethod
