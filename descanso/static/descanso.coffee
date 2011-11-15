@@ -55,7 +55,12 @@ define ['jquery', 'cs!notifier', 'jquery.tmpl.min'], ($, notifier) ->
 
         dict: (obj) ->
             dict = {}
-            dict[f.name] = obj[f.name] for f in @fields
+            for f in @fields
+                if obj[f.name] && obj[f.name].id
+                    dict[f.name+"_id"] = obj[f.name].id
+                else 
+                    dict[f.name] = obj[f.name] 
+                
             return dict
             
         member_url: (obj_or_id) ->
