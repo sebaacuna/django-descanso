@@ -7,12 +7,6 @@ define ['jquery', 'cs!notifier', 'jquery.tmpl.min'], ($, notifier) ->
             @api_url = ''
             @meta_resources_url = "/_resources"
             
-        printRepo: () ->
-            for own name, r of @resources
-                console.log "<", name , ">"
-                for own id, obj of r.repo
-                    console.log ">> ", obj.id, ":", obj.name
-        
         addResource: (metadata, cls) ->
             if !cls
                 cls = Resource
@@ -118,7 +112,7 @@ define ['jquery', 'cs!notifier', 'jquery.tmpl.min'], ($, notifier) ->
             # Watch object events
             for field in @fields
                 #Callback to be invoked upon object property setting
-                @addHandler obj, field.name, (k, oldval, newval) ->
+                @addHandler obj, field.name, (k, oldval, newval) =>
                     @repo[obj.id].notifier.notifyAll 'change', { path: [k], value: newval }
                     return newval
             return obj
@@ -261,7 +255,7 @@ define ['jquery', 'cs!notifier', 'jquery.tmpl.min'], ($, notifier) ->
         bind: (obj) ->
             super obj
             @elem.attr "id", obj.id
-            @elem.bind "click", (event)=>
+            @elem.find(".select").bind "click", (event)=>
                 if @parentView                    
                     @parentView.triggerEvent "select", obj
 
@@ -277,6 +271,8 @@ define ['jquery', 'cs!notifier', 'jquery.tmpl.min'], ($, notifier) ->
                 @attachView "items", rowview
                 rowview.bind obj
             @elem = @element()
+            @elem.find(".add").bind "click", () =>
+                @triggerEvent "new"
 
     class ResourcePaneView extends ResourceView
         
@@ -289,26 +285,31 @@ define ['jquery', 'cs!notifier', 'jquery.tmpl.min'], ($, notifier) ->
             resource = @resource
             
             # Bind DOM events
-            elem.find(".controls a.edit"   ).bind "click", ()->    elem.addClass "editmode"
-            elem.find(".controls a.cancel" ).bind "click", () ->   elem.removeClass "editmode"
+            elem.find(".controls a.edit"   ).bind "click", ()=> @editMode()
+            elem.find(".controls a.cancel" ).bind "click", ()=> @normalMode()
 
-            elem.find(".controls a.submit").bind "click", () ->            
+            elem.find(".controls a.submit").bind "click", () =>            
                 elem.removeClass "editmode"
                 elem.addClass "submitmode"
                 if obj.id
                     resource.put obj, ()->
-                        elem.removeClass "submitmode"
+                     elem.removeClass "submitmode"
                 else
                     resource.post obj, ()->
-                        elem.removeClass "submitmode"
-                                
+                     elem.removeClass "submitmode"
+           
             elem.find('.controls a.delete').bind "click", () ->
                 elem.removeClass "editmode"
                 elem.addClass "submitmode"
                 resource.delete obj, ()=>
                     @bind(resource.empty())
                     elem.removeClass "submitmode"
-
+            
+        editMode: ->
+            @elem.addClass "editmode"
+        
+        normalMode: ->
+            @elem.removeClass "editmode"
 
     return {
         "App": App

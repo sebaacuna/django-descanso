@@ -8,26 +8,32 @@
 
 {% raw %}
 	<script id="template-resourcelist" type="x-jquery-tmpl/html">
-	<select class="items">
-	</select>
+	<nav><ul class="items"></ul>
+	</nav>
 	</script>
 
 	<script id="template-resourcelistitem" type="x-jquery-tmpl/html">
-	<option bind="name"></option>
+	<li><a href="#" class="select" bind="name"></a></li>
 	</script>
 
 	<script id="template-entitylist" type="x-jquery-tmpl/html">
-	<table class="resourcelist view">
+	<div class="resourcelist">
+		<div class="controls">
+			<a class="add">Add</a>
+		</div>
+		<table class="view">
 		<thead>
 			<tr>
 				{{each resource.fields}}
 				<th>${$value.verbose_name}</th>
 				{{/each}}
+				<th>view</th>
 			</tr>
 		</thead>
 		<tbody class="items">
 		</tbody>
-	</table>
+		</table>
+	</div>
 	</script>
 	
 	<script id="template-entitylistitem" type="x-jquery-tmpl/html">
@@ -35,6 +41,7 @@
 		{{each resource.fields}}
 		<td bind="${$value.name}"></td>
 		{{/each}}
+		<td><a href="#" class="select">view</a></td>
 	</tr>
 	</script>
 
@@ -43,13 +50,21 @@
 		{{each resource.fields}}
 		<div class="property">
 			<div class="fieldName">${$value.verbose_name}</div>
-			<div class="valueDisplay" bind="${$value.name}"></div>
-			<input class="valueInput" bind="${$value.name}"></div>
+			<div class="valueDisplay" bind="${$value.name}" ></div>
+			{{if $value.choices}}
+				<select bind="${$value.name}">
+				{{each $value.choices}}
+					<option value="${$index}">${$value}</option>
+				{{/each}}
+				</select>
+			{{else}}
+				<input class="valueInput" title="${$value.verbose_name}" bind="${$value.name}" />			
+			{{/if}}
 		</div>
 		{{/each}}
 		<div class="controls" >
 			<a class="edit" >Edit</a>
-			<a class="submit" >Submit</a>
+			<a class="submit" >Done</a>
 			<a class="cancel" >Cancel</a>
 			<a class="delete" >Delete</a>
 		</div>
