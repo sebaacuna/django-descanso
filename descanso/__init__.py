@@ -69,15 +69,19 @@ class api:
             allowed_methods = ('GET')
 
             def read(self, request, *args, **kwargs):
+                def field_meta(f):
+                    meta = { 
+                        'name' : f.attname,
+                        'type' : f.__class__.__name__,
+                        'verbose_name' : f.verbose_name.capitalize(),
+                     }
+                    meta.update( {'choices' : dict(f.choices) }  if f.choices else {} )
+                    return meta
+                    
                 resources = [ { 
                         'name' : api.resource_name(m), 
                         'url': reverse( '%s-list' % api.resource_name(m) ),
-                        'fields': [ { 
-                            'name' : f.attname,
-                            'choices' : dict(f.choices),
-                            'type' : f.__class__.__name__,
-                            'verbose_name' : f.verbose_name.capitalize(),
-                         } for f in m._meta.fields if not f.primary_key ],
+                        'fields': [ field_meta(f) for f in m._meta.fields if not f.primary_key ],
 
                     } for m in myapi.models ]
                     
