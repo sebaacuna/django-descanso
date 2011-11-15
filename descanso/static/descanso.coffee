@@ -185,6 +185,13 @@ define ['jquery', 'cs!notifier', 'jquery.tmpl.min'], ($, notifier) ->
         bind: (@obj) ->
             @elem = @element()
 
+
+            updateNode = (node, obj) ->
+                if node.tagName == "INPUT"
+                    $(node).val obj
+                else
+                    $(node).text obj
+                    
             # HACK - This prevents setting a domUpdater directed towards the
             # resource repo when the resource is the meta resource 
             # (_resources) :/
@@ -193,19 +200,14 @@ define ['jquery', 'cs!notifier', 'jquery.tmpl.min'], ($, notifier) ->
                     return {
                         "change" : (args) =>
                             console.log "Updating element"
-                            $(@elem).find('[bind="'+args.path.join(" ")+'"]').each (i,node) ->
-                                if node.tagName == "INPUT"
-                                    $(node).val args.value
-                                else
-                                    $(node).text args.value
+                            $(@elem).find('[bind="'+args.path.join(" ")+'"]').each (i,node) -> updateNode node, args.value
                     }
                 @resource.repo[obj.id].notifier.addListener domUpdater @elem
 
             bindNode = (i, node) =>
                 tagName = node.tagName
-                node = $(node)
                 return unless $(node).attr("bind")?
-                path = node.attr("bind").trim().split(" ")
+                path = $(node).attr("bind").trim().split(" ")
                 path_cpy = path.slice(0) # A copy of the array
                 target = obj
 
@@ -214,14 +216,10 @@ define ['jquery', 'cs!notifier', 'jquery.tmpl.min'], ($, notifier) ->
                     target = target[path.shift()]
                 key = path.shift()
 
-                if tagName == "INPUT"
-                    node.val target[key]
+                updateNode node, target[key]
+                $(node).bind 'change', (event) =>
+                    @updateObject { path: path_cpy , value: $(event.target).val() }
 
-                    # Set listeners from DOM to monitored obejct
-                    node.bind 'change', (event) =>
-                        @updateObject { path: path_cpy , value: $(event.target).val() }
-                else
-                    node.text target[key]
             
             $(@elem).each bindNode
             $(@elem).find("[bind]").each bindNode
