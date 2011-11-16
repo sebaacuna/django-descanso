@@ -1,4 +1,4 @@
-define ['jquery', 'cs!notifier', 'jquery.tmpl.min'], ($, notifier) ->
+define ['jquery', 'cs!notifier', 'jquery.tmpl.min', 'jquery.upload-1.0.2.min'], ($, notifier) ->
     class App
         
         constructor: ->
@@ -148,18 +148,15 @@ define ['jquery', 'cs!notifier', 'jquery.tmpl.min'], ($, notifier) ->
                     obj.__defineGetter__ prop, getter
                     obj.__defineSetter__ prop, setter
     
-    ###
-    ResourceViews are views that are associated
-    to a single specific resource
-    ###
-    class ResourceView
+    
+    class TemplateView
         
-        constructor: (@resource) ->
-            @subviews = {}
-            @parentView = null
+        constructor: ()->
             @notifier = new notifier.Notifier()
+            @parentView = null
+            @subviews = {}
             @templates = {}
-        
+            
         ###
         Expect a dictionary of { template_name: template_id }
         template_name is one of the names relevant to the view
@@ -174,6 +171,9 @@ define ['jquery', 'cs!notifier', 'jquery.tmpl.min'], ($, notifier) ->
             else
                 @templates['view'] = templates
 
+        bind: (@obj)->
+            # Does nothing for now
+            @elem = @element()
             
         ###
         Create and return a DOM element for the given template name
@@ -187,26 +187,74 @@ define ['jquery', 'cs!notifier', 'jquery.tmpl.min'], ($, notifier) ->
                 else
                     attachPoint = @elem.find "." + name
                 attachPoint.append sv.elem for sv in subviews
+                
+            # Bind view events
+            $(@elem).find("[view-bind-event]").each (i, node)=>
+                
+                keyval = (str)->
+                    sep = str.indexOf(":")
+                    return [str.substring(0,sep), str.substring(sep+1)]
+                
+                tokens = $(node).attr("view-bind-event").split(" ")
+                [domEvent, viewEvent] = keyval tokens.shift()
+
+                extra = {}
+                while tokens.length >0
+                    [k, v] = keyval tokens.shift()
+                    extra[k] = v
+
+                $(node).bind domEvent, ()=> @triggerEvent viewEvent, { view: @, extra: extra }
+
             return @elem
-            
+    
+        bindEvent: (event, handler) ->
+            @notifier.on event, handler
+
+        triggerEvent: (event, arg) ->
+            @notifier.notifyAll event, arg
+
+        attachView: (name, subview) ->
+            if subview instanceof Array
+                @subviews[name] = []
+                @attachView name, sv for sv in subview
+            else
+                @subviews[name] ?= []
+                @subviews[name].push subview
+                subview.setTemplate @templates[name]
+                subview.parentView = @
+    
+    class FieldView extends TemplateView
+        
+        constructor: (@field) ->
+            super
+    
+    ###
+    ResourceViews are views that are associated
+    to a single specific resource
+    ###
+    class ResourceView extends TemplateView
+        
+        constructor: (@resource) ->
+            super 
             
         bind: (@obj) ->
             @elem = @element()
-#            return unless @obj?
+            return unless @obj?
+            
+            embedView = (node, embedId, subview) =>
+                #subview = new ResourceView(@resource.app.resources[subresource])
+                subview.setTemplate embedId
+                subview.bind obj
+                $(node).addClass embedId
+                @attachView embedId, [subview]
+                $(node).empty()
+                $(node).append subview.elem
 
             updateNode = (node, obj, field) =>
                 if subresource = @resource.fields_dict[field].to
                     # Foreign Key. Embedded subview should be used
                     # rebuild subview
-                    subview = new ResourceView(@resource.app.resources[subresource])
-                    subview.setTemplate "embed-"+subresource
-                    subview.bind obj
-                    embedClass = "embed-"+subresource
-                    $(node).addClass embedClass
-                    @attachView embedClass, [subview]
-                    $(node).empty()
-                    $(node).append subview.elem
-                    
+                    embedView node, "embed-"+subresource, new ResourceView(@resource.app.resources[subresource])           
                 else if node.tagName == "INPUT"
                     $(node).val obj
                 else
@@ -230,51 +278,30 @@ define ['jquery', 'cs!notifier', 'jquery.tmpl.min'], ($, notifier) ->
                 return unless $(node).attr("bind")?
                 path = $(node).attr("bind").trim().split(" ")
                 path_cpy = path.slice(0) # A copy of the array
-                target = obj
+                #target = obj
 
                 #Initialize element
                 #while path.length > 1
                 #    target = target[path.shift()]
                 # Suppporting 1-length paths for now
-                key = path.shift()
+                field = path.shift()
 
-                updateNode node, target[key], key
-                $(node).bind 'change', (event) =>
-                    @updateObject { path: path_cpy , value: $(event.target).val() }
-
-
+                updateNode node, obj[field], field
+                
+                if @resource.fields_dict[field].upload_url
+                    subview = new FieldView(@resource.fields_dict[field])
+                    subview.bindEvent "attach", (args)->
+                        onupload = (res)->
+                            alert("uploaded")
+                        #subview.elem.find('input[type=file]').upload args.extra.url, onupload, "json"
+                    embedView node, "fileupload", subview
+                else    
+                    $(node).bind 'change', (event) =>
+                        @updateObject { path: path_cpy , value: $(event.target).val() }
             
             $(@elem).each bindNode
             $(@elem).find("[bind]").each bindNode
             
-            # Bind view events
-            $(@elem).find("[view-bind-event]").each (i, node)=>
-                tokens = $(node).attr("view-bind-event").split(" ")
-                [domEvent, viewEvent] = tokens.shift().split(":")
-
-                extra = {}
-                while tokens.length >0
-                    [k, v] = tokens.shift().split(":")
-                    extra[k] = v
-
-                $(node).bind domEvent, ()=> @triggerEvent viewEvent, { obj: @obj, extra: extra }
-            
-        bindEvent: (event, handler) ->
-            @notifier.on event, handler
-            
-        triggerEvent: (event, arg) ->
-            @notifier.notifyAll event, arg
-
-        attachView: (name, subview) ->
-            if subview instanceof Array
-                @subviews[name] = []
-                @attachView name, sv for sv in subview
-            else
-                @subviews[name] ?= []
-                @subviews[name].push subview
-                subview.setTemplate @templates[name]
-                subview.parentView = @
-        
         updateObject: (args) ->
             console.log "Updating object"
             obj = @obj

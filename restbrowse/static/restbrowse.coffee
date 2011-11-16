@@ -17,7 +17,7 @@ define ["jquery","cs!descanso"], ($, descanso) ->
 
                 selectorview.bind reslist
                 selectorview.bindEvent "select", (args) =>
-                    @load args.obj.name
+                    @load args.view.obj.name
 
                 app.renderView "#resource_list", selectorview
                 
@@ -36,7 +36,7 @@ define ["jquery","cs!descanso"], ($, descanso) ->
                     chooserview.bind obj_list
                     app.renderView "#chooser", chooserview
                     chooserview.bindEvent "select", (args)->
-                        obj[field] = args.obj
+                        obj[field] = args.view.obj
                 
 
             listview = new descanso.ResourceListView app.resources[resource_name]
