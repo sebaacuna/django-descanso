@@ -23,7 +23,15 @@ define ["jquery","cs!descanso"], ($, descanso) ->
                 
         load: (resource_name) ->
             paneview = new descanso.ResourcePaneView app.resources[resource_name]
-            paneview.setTemplate "template-entitypane"
+            if resource_name == "image"
+                paneview.setTemplate "embed-image"
+                paneview.bindEvent "attach", (args)->
+                    alert("uploading")
+                    onupload = (res)->
+                        alert(res)
+                    paneview.elem.upload args.extra.url, onupload, "json"
+            else
+                paneview.setTemplate "template-entitypane"
             $("#entity_pane").empty()
             
             paneview.bindEvent "choose", (args)=>
@@ -46,12 +54,12 @@ define ["jquery","cs!descanso"], ($, descanso) ->
                 listview.bind obj
                 listview.bindEvent "new", () ->
                     paneview.bind paneview.resource.empty()
-                    paneview.editMode()
+                    paneview.triggerEvent "edit"
                     app.renderView "#entity_pane", paneview
                     
                 listview.bindEvent "select", (args) ->
-                    paneview.bind args.obj
-                    paneview.elem.addClass "new"
+                    paneview.bind args.view.obj
+#                    paneview.elem.addClass "new"
                     app.renderView "#entity_pane", paneview
                     
                 app.renderView "#entity_list", listview

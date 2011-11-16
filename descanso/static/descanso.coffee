@@ -45,7 +45,13 @@ define ['jquery', 'cs!notifier', 'jquery.tmpl.min', 'jquery.upload-1.0.2.min'], 
             @url = metadata.url
             @fields = metadata.fields
             @fields_dict = {}
-            @fields_dict[f.name] = f for f in @fields
+            @type = "normal"
+            for f in @fields
+                if f.upload_url
+                    @type="upload"
+                    @upload_url = f.upload_url
+                @fields_dict[f.name] = f
+                
             @repo = {}
 
         empty: () ->
@@ -180,6 +186,12 @@ define ['jquery', 'cs!notifier', 'jquery.tmpl.min', 'jquery.upload-1.0.2.min'], 
         ###
         element: ( name = "view" ) ->
             @elem = $("#"+@templates[name]).tmpl @
+            # Bind view events
+            $(@elem).each (i,node) =>
+                @createEventBindings node
+                $(node).find("[view-bind-event]").each (i,node)=>
+                    @createEventBindings node
+                            
             # Subview attachment point
             for name, subviews of @subviews
                 if @elem.hasClass name
@@ -187,26 +199,31 @@ define ['jquery', 'cs!notifier', 'jquery.tmpl.min', 'jquery.upload-1.0.2.min'], 
                 else
                     attachPoint = @elem.find "." + name
                 attachPoint.append sv.elem for sv in subviews
-                
-            # Bind view events
-            $(@elem).find("[view-bind-event]").each (i, node)=>
-                
-                keyval = (str)->
-                    sep = str.indexOf(":")
-                    return [str.substring(0,sep), str.substring(sep+1)]
-                
-                tokens = $(node).attr("view-bind-event").split(" ")
-                [domEvent, viewEvent] = keyval tokens.shift()
-
-                extra = {}
-                while tokens.length >0
-                    [k, v] = keyval tokens.shift()
-                    extra[k] = v
-
-                $(node).bind domEvent, ()=> @triggerEvent viewEvent, { view: @, extra: extra }
 
             return @elem
-    
+        
+        ###
+        
+        ###
+        createEventBindings: (node) ->
+            return unless $(node).attr("view-bind-event")
+            keyval = (str)->
+                sep = str.indexOf(":")
+                return [str.substring(0,sep), str.substring(sep+1)]
+            
+            tokens = $(node).attr("view-bind-event").split(" ")
+            [domEvent, viewEvent] = keyval tokens.shift()
+
+            extra = {}
+            while tokens.length >0
+                [k, v] = keyval tokens.shift()
+                extra[k] = v
+
+            $(node).bind domEvent, (event)=> 
+                console.log "Triggering dom->view event ", domEvent, viewEvent
+                @triggerEvent viewEvent, { view: @, extra: extra }
+            
+
         bindEvent: (event, handler) ->
             @notifier.on event, handler
 
@@ -222,12 +239,7 @@ define ['jquery', 'cs!notifier', 'jquery.tmpl.min', 'jquery.upload-1.0.2.min'], 
                 @subviews[name].push subview
                 subview.setTemplate @templates[name]
                 subview.parentView = @
-    
-    class FieldView extends TemplateView
-        
-        constructor: (@field) ->
-            super
-    
+                
     ###
     ResourceViews are views that are associated
     to a single specific resource
@@ -251,11 +263,12 @@ define ['jquery', 'cs!notifier', 'jquery.tmpl.min', 'jquery.upload-1.0.2.min'], 
                 $(node).append subview.elem
 
             updateNode = (node, obj, field) =>
-                if subresource = @resource.fields_dict[field].to
+                #if subresource = @resource.fields_dict[field].to
                     # Foreign Key. Embedded subview should be used
                     # rebuild subview
-                    embedView node, "embed-"+subresource, new ResourceView(@resource.app.resources[subresource])           
-                else if node.tagName == "INPUT"
+                #    embedView node, "embed-"+subresource, new ResourceView(@resource.app.resources[subresource])           
+                #else 
+                if node.tagName == "INPUT"
                     $(node).val obj
                 else
                     $(node).text obj
@@ -287,17 +300,17 @@ define ['jquery', 'cs!notifier', 'jquery.tmpl.min', 'jquery.upload-1.0.2.min'], 
                 field = path.shift()
 
                 updateNode node, obj[field], field
-                
-                if @resource.fields_dict[field].upload_url
-                    subview = new FieldView(@resource.fields_dict[field])
-                    subview.bindEvent "attach", (args)->
-                        onupload = (res)->
-                            alert("uploaded")
+                                    
+#                if @resource.fields_dict[field].upload_url
+#                    subview = new FieldView(@resource.fields_dict[field])
+#                    subview.bindEvent "attach", (args)->
+#                        onupload = (res)->
+#                            alert("uploaded")
                         #subview.elem.find('input[type=file]').upload args.extra.url, onupload, "json"
-                    embedView node, "fileupload", subview
-                else    
-                    $(node).bind 'change', (event) =>
-                        @updateObject { path: path_cpy , value: $(event.target).val() }
+#                    embedView node, "fileupload", subview
+#                else    
+                $(node).bind 'change', (event) =>
+                    @updateObject { path: path_cpy , value: $(event.target).val() }
             
             $(@elem).each bindNode
             $(@elem).find("[bind]").each bindNode
@@ -335,8 +348,6 @@ define ['jquery', 'cs!notifier', 'jquery.tmpl.min', 'jquery.upload-1.0.2.min'], 
                 @attachView "items", rowview
                 rowview.bind obj
             @elem = @element()
-            @elem.find(".add").bind "click", () =>
-                @triggerEvent "new"
 
     class ResourcePaneView extends ResourceView
         
@@ -349,10 +360,10 @@ define ['jquery', 'cs!notifier', 'jquery.tmpl.min', 'jquery.upload-1.0.2.min'], 
             resource = @resource
             
             # Bind DOM events
-            elem.find(".controls a.edit"   ).bind "click", ()=> @editMode()
-            elem.find(".controls a.cancel" ).bind "click", ()=> @normalMode()
+            @bindEvent "edit", (args)=> @editMode()
+            @bindEvent "canceledit", (args)=> @normalMode()
 
-            elem.find(".controls a.submit").bind "click", () =>            
+            @bindEvent "submit", (args) =>            
                 elem.removeClass "editmode"
                 elem.addClass "submitmode"
                 if obj.id
@@ -362,7 +373,7 @@ define ['jquery', 'cs!notifier', 'jquery.tmpl.min', 'jquery.upload-1.0.2.min'], 
                     resource.post obj, ()->
                      elem.removeClass "submitmode"
            
-            elem.find('.controls a.delete').bind "click", () =>
+            @bindEvent "delete", (args) =>
                 elem.removeClass "editmode"
                 elem.addClass "submitmode"
                 resource.delete obj, ()=>

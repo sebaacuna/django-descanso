@@ -85,7 +85,8 @@ class api:
                     meta.update( {'choices' : dict(f.choices) }  if f.choices else {} )
                     meta.update( {'to' : api.resource_name(f.rel.to) }  if f.rel else {} )
                     if hasattr(f, 'storage') :
-                        upload_url, upload_data = prepare_upload(request, reverse("upload"))
+                        #upload_url, upload_data = prepare_upload(request, reverse("upload"), private=False)
+                        upload_url = "/promo/upload/"
                         meta.update( {  'upload_url'    : upload_url,
                                         'upload_data'   : {"test":"testing"},
                                     })
