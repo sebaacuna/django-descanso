@@ -57,14 +57,14 @@ define ['jquery', 'cs!notifier', 'jquery.tmpl.min', 'jquery.upload-1.0.2.min'], 
         empty: () ->
             dict = {}
             dict[f.name] = null for f in @fields
-            return dict
+            return @bless dict
 
         dict: (obj) ->
             dict = {}
             for f in @fields
-                if obj[f.name] && obj[f.name].id
+                if obj[f.name]? && obj[f.name].id?
                     dict[f.name+"_id"] = obj[f.name].id
-                else 
+                else if obj[f.name]?
                     dict[f.name] = obj[f.name] 
                 
             return dict
@@ -83,17 +83,17 @@ define ['jquery', 'cs!notifier', 'jquery.tmpl.min', 'jquery.upload-1.0.2.min'], 
         list: (callback) ->
             @ajax "GET", "", (data) =>
                 list = []
-                list.push @entity obj for obj in data
+                list.push @bless obj for obj in data
                 callback list
 
         post: (obj, callback) ->
-            @ajax "POST", obj, (data) => callback @entity data
+            @ajax "POST", obj, (data) => callback @bless data
 
         get: (id, callback) ->
-            @ajax "GET", id, (data) => callback @entity data
+            @ajax "GET", id, (data) => callback @bless data
 
         put: (obj, callback) ->
-            @ajax "PUT", obj, (data) => callback obj
+            @ajax "PUT", obj, (data) => callback @bless obj
 
         delete: (obj, callback) ->
             @ajax "DELETE", obj, (data) =>
@@ -108,26 +108,29 @@ define ['jquery', 'cs!notifier', 'jquery.tmpl.min', 'jquery.upload-1.0.2.min'], 
                 dataType: if method == 'PUT' then 'text' else 'json'
 
             if typeof obj == 'object'
-                args.data = @dict(obj)
+                args.data = @dict obj
                 
             $.ajax @member_url(obj), args
             
         addToRepo: (obj) ->
-            if @repo[obj.id]
-                return @repo[obj.id]
+            #if @repo[obj.id]
+            #    return @repo[obj.id]
             
             obj_notifier = new notifier.Notifier()
             @repo[obj.id] = 
                 notifier: obj_notifier 
                 entity: obj
 
-        entity: (obj) ->
-            @addToRepo obj
+        bless: (obj) ->
+            #@addToRepo obj
             # Watch object events
+            if not obj._notifier?
+                obj._notifier = new notifier.Notifier()
+                
             for field in @fields
                 #Callback to be invoked upon object property setting
                 @addHandler obj, field.name, (k, oldval, newval) =>
-                    @repo[obj.id].notifier.notifyAll 'change', { path: [k], value: newval }
+                    obj._notifier.notifyAll 'change', { path: [k], value: newval }
                     return newval
             return obj
 
@@ -253,7 +256,7 @@ define ['jquery', 'cs!notifier', 'jquery.tmpl.min', 'jquery.upload-1.0.2.min'], 
             @elem = @element()
             return unless @obj?
             
-            embedView = (node, embedId, subview) =>
+            embedView = (node, embedId, subview, obj) =>
                 #subview = new ResourceView(@resource.app.resources[subresource])
                 subview.setTemplate embedId
                 subview.bind obj
@@ -263,12 +266,11 @@ define ['jquery', 'cs!notifier', 'jquery.tmpl.min', 'jquery.upload-1.0.2.min'], 
                 $(node).append subview.elem
 
             updateNode = (node, obj, field) =>
-                #if subresource = @resource.fields_dict[field].to
+                if subresource = @resource.fields_dict[field]?.to
                     # Foreign Key. Embedded subview should be used
                     # rebuild subview
-                #    embedView node, "embed-"+subresource, new ResourceView(@resource.app.resources[subresource])           
-                #else 
-                if node.tagName == "INPUT"
+                    embedView node, "embed-"+subresource, new ResourceView(@resource.app.resources[subresource]), obj           
+                else if node.tagName == "INPUT"
                     $(node).val obj
                 else
                     $(node).text obj
@@ -276,7 +278,7 @@ define ['jquery', 'cs!notifier', 'jquery.tmpl.min', 'jquery.upload-1.0.2.min'], 
             # HACK - This prevents setting a domUpdater directed towards the
             # resource repo when the resource is the meta resource 
             # (_resources) :/
-            if @resource.repo[obj.id]
+            if obj._notifier
                 domUpdater = () =>
                     return {
                         "change" : (args) =>
@@ -284,7 +286,7 @@ define ['jquery', 'cs!notifier', 'jquery.tmpl.min', 'jquery.upload-1.0.2.min'], 
                             field = args.path[0]
                             $(@elem).find('[bind="'+field+'"]').each (i,node) -> updateNode node, args.value, field
                     }
-                @resource.repo[obj.id].notifier.addListener domUpdater @elem
+                obj._notifier.addListener domUpdater @elem
 
             bindNode = (i, node) =>
                 tagName = node.tagName
@@ -367,8 +369,9 @@ define ['jquery', 'cs!notifier', 'jquery.tmpl.min', 'jquery.upload-1.0.2.min'], 
                 elem.removeClass "editmode"
                 elem.addClass "submitmode"
                 if obj.id
-                    resource.put obj, ()->
-                     elem.removeClass "submitmode"
+                    resource.put obj, ()=>
+                        elem.removeClass "submitmode"
+                        @triggerEvent "submitted"
                 else
                     resource.post obj, ()->
                      elem.removeClass "submitmode"

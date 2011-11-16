@@ -1,5 +1,5 @@
 define ["jquery","cs!descanso"], ($, descanso) ->
-    class App extends descanso.App        
+    class App extends descanso.App
         
         constructor: ->
             super    
@@ -25,19 +25,21 @@ define ["jquery","cs!descanso"], ($, descanso) ->
             paneview = new descanso.ResourcePaneView app.resources[resource_name]
             if resource_name == "image"
                 paneview.setTemplate "embed-image"
-                paneview.bindEvent "attach", (args)->
-                    alert("uploading")
-                    onupload = (res)->
-                        alert(res)
+                paneview.bindEvent "attach", (args)=>
+                    onupload = (res)=>
+                        @load resource_name
                     paneview.elem.upload args.extra.url, onupload, "json"
             else
                 paneview.setTemplate "template-entitypane"
             $("#entity_pane").empty()
             
+            paneview.bindEvent "submitted", (args)=>
+                @load resource_name
+
             paneview.bindEvent "choose", (args)=>
                 res = app.resources[args.extra.resource]
                 field = args.extra.field
-                obj = args.obj
+                obj = args.view.obj
                 res.list (obj_list)->
                     chooserview = new descanso.ResourceListView res
                     chooserview.setTemplate { view: "template-chooser", items: "template-chooser-item"}
