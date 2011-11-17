@@ -310,15 +310,16 @@ define ['jquery', 'cs!notifier', 'jquery.tmpl.min', 'jquery.upload-1.0.2.min'], 
                 field = path.shift()
 
                 updateNode node, obj[field], field
-                    
-                $(node).bind 'change', (event) =>
-                    console.log "Updating object"
-                    i = 0
-                    #while i < args.path.length - 1
-                    #    obj = obj[args.path[i++]]
-                    # Suppporting 1-length paths for now
-                    @obj[path_cpy] = $(event.target).val()
-                    @triggerEvent "changed", { view: @, domEvent: event }
+                
+                unless  @resource.fields_dict[field]?.to    
+                    $(node).bind 'change', (event) =>
+                        console.log "Updating object"
+                        i = 0
+                        #while i < args.path.length - 1
+                        #    obj = obj[args.path[i++]]
+                        # Suppporting 1-length paths for now
+                        @obj[path_cpy] = $(event.target).val()
+                        @triggerEvent "changed", { view: @, domEvent: event }
             
             $(@elem).each bindNode
             $(@elem).find("[bind]").each bindNode
