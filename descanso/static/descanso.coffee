@@ -33,7 +33,7 @@ define ['jquery', 'cs!notifier', 'jquery.tmpl.min', 'jquery.upload-1.0.2.min'], 
                 success: (data, textStatus, jqXHR) =>
                     for res in data
                         @addResource res
-                    callback(app)
+                    callback(@)
                 dataType: "json"
             
     class Resource
@@ -80,8 +80,12 @@ define ['jquery', 'cs!notifier', 'jquery.tmpl.min', 'jquery.upload-1.0.2.min'], 
                 
             return @server_url + [@url, id ].join "/"
 
-        list: (callback) ->
-            @ajax "GET", "", (data) =>
+        list: (params, callback) ->
+            if not callback?
+                callback = params
+                params = {}
+                
+            @ajax "GET", params, (data) =>
                 list = []
                 list.push @bless obj for obj in data
                 callback list
@@ -93,7 +97,7 @@ define ['jquery', 'cs!notifier', 'jquery.tmpl.min', 'jquery.upload-1.0.2.min'], 
             @ajax "GET", id, (data) => callback @bless data
 
         put: (obj, callback) ->
-            @ajax "PUT", obj, (data) => callback @bless obj
+            @ajax "PUT", obj, (data) => callback @bless data
 
         delete: (obj, callback) ->
             @ajax "DELETE", obj, (data) =>
@@ -224,7 +228,7 @@ define ['jquery', 'cs!notifier', 'jquery.tmpl.min', 'jquery.upload-1.0.2.min'], 
 
             $(node).bind domEvent, (event)=> 
                 console.log "Triggering dom->view event ", domEvent, viewEvent
-                @triggerEvent viewEvent, { view: @, extra: extra }
+                @triggerEvent viewEvent, { view: @, extra: extra, domEvent: event }
             
 
         bindEvent: (event, handler) ->
@@ -262,6 +266,8 @@ define ['jquery', 'cs!notifier', 'jquery.tmpl.min', 'jquery.upload-1.0.2.min'], 
                 subview.bind obj
                 $(node).addClass embedId
                 @attachView embedId, [subview]
+                subview.triggerEvent = (event, args) ->
+                    @parentView.triggerEvent event, args
                 $(node).empty()
                 $(node).append subview.elem
 
@@ -269,6 +275,7 @@ define ['jquery', 'cs!notifier', 'jquery.tmpl.min', 'jquery.upload-1.0.2.min'], 
                 if subresource = @resource.fields_dict[field]?.to
                     # Foreign Key. Embedded subview should be used
                     # rebuild subview
+                    obj ?= @resource.app.resources[subresource].empty()
                     embedView node, "embed-"+subresource, new ResourceView(@resource.app.resources[subresource]), obj           
                 else if node.tagName == "INPUT"
                     $(node).val obj
@@ -278,7 +285,7 @@ define ['jquery', 'cs!notifier', 'jquery.tmpl.min', 'jquery.upload-1.0.2.min'], 
             # HACK - This prevents setting a domUpdater directed towards the
             # resource repo when the resource is the meta resource 
             # (_resources) :/
-            if obj._notifier
+            if obj._notifier    
                 domUpdater = () =>
                     return {
                         "change" : (args) =>
@@ -302,15 +309,7 @@ define ['jquery', 'cs!notifier', 'jquery.tmpl.min', 'jquery.upload-1.0.2.min'], 
                 field = path.shift()
 
                 updateNode node, obj[field], field
-                                    
-#                if @resource.fields_dict[field].upload_url
-#                    subview = new FieldView(@resource.fields_dict[field])
-#                    subview.bindEvent "attach", (args)->
-#                        onupload = (res)->
-#                            alert("uploaded")
-                        #subview.elem.find('input[type=file]').upload args.extra.url, onupload, "json"
-#                    embedView node, "fileupload", subview
-#                else    
+
                 $(node).bind 'change', (event) =>
                     @updateObject { path: path_cpy , value: $(event.target).val() }
             
@@ -334,10 +333,9 @@ define ['jquery', 'cs!notifier', 'jquery.tmpl.min', 'jquery.upload-1.0.2.min'], 
         
         bind: (obj) ->
             super obj
-            @elem.attr "id", obj.id
-            @bindEvent "select", (args)=>
-                if @parentView
-                    @parentView.triggerEvent "select", args
+#            @elem.attr "id", obj.id
+            @triggerEvent = (event, args) ->
+                @parentView.triggerEvent event, args
 
     class ResourceListView extends ResourceView
         
@@ -345,6 +343,7 @@ define ['jquery', 'cs!notifier', 'jquery.tmpl.min', 'jquery.upload-1.0.2.min'], 
             super resource
         
         bind: (obj_list) ->
+            @subviews = {}
             for obj in obj_list
                 rowview = new ResourceListItemView(@resource)
                 @attachView "items", rowview
@@ -358,37 +357,22 @@ define ['jquery', 'cs!notifier', 'jquery.tmpl.min', 'jquery.upload-1.0.2.min'], 
         
         bind: (obj) ->
             super obj
-            elem = @elem
-            resource = @resource
-            
-            # Bind DOM events
-            @bindEvent "edit", (args)=> @editMode()
-            @bindEvent "canceledit", (args)=> @normalMode()
-
-            @bindEvent "submit", (args) =>            
-                elem.removeClass "editmode"
-                elem.addClass "submitmode"
-                if obj.id
-                    resource.put obj, ()=>
-                        elem.removeClass "submitmode"
-                        @triggerEvent "submitted"
-                else
-                    resource.post obj, ()->
-                     elem.removeClass "submitmode"
-           
-            @bindEvent "delete", (args) =>
-                elem.removeClass "editmode"
-                elem.addClass "submitmode"
-                resource.delete obj, ()=>
-                    @bind(resource.empty())
-                    elem.removeClass "submitmode"
-            
-        editMode: ->
-            @elem.addClass "editmode"
         
-        normalMode: ->
-            @elem.removeClass "editmode"
-
+        submit: () ->
+            console.log "Submitting object"
+            if @obj.id
+                @resource.put @obj, (obj)=>
+                    @triggerEvent "submitted"
+                    @bind obj
+            else
+                @resource.post @obj, (obj)=>
+                    @triggerEvent "submitted"
+                    @bind obj
+            
+        delete: () ->
+            @resource.delete @obj, ()=>
+                @bind(@resource.empty())
+            
     return {
         "App": App
         "ResourcePaneView": ResourcePaneView
