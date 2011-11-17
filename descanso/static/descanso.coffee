@@ -64,6 +64,7 @@ define ['jquery', 'cs!notifier', 'jquery.tmpl.min', 'jquery.upload-1.0.2.min'], 
             for f in @fields
                 if obj[f.name]? && obj[f.name].id?
                     dict[f.name+"_id"] = obj[f.name].id
+                    #dict[f.name] = obj[f.name].id
                 else if obj[f.name]?
                     dict[f.name] = obj[f.name] 
                 
@@ -97,7 +98,7 @@ define ['jquery', 'cs!notifier', 'jquery.tmpl.min', 'jquery.upload-1.0.2.min'], 
             @ajax "GET", id, (data) => callback @bless data
 
         put: (obj, callback) ->
-            @ajax "PUT", obj, (data) => callback @bless data
+            @ajax "PUT", obj, (data) => callback obj
 
         delete: (obj, callback) ->
             @ajax "DELETE", obj, (data) =>
@@ -309,21 +310,33 @@ define ['jquery', 'cs!notifier', 'jquery.tmpl.min', 'jquery.upload-1.0.2.min'], 
                 field = path.shift()
 
                 updateNode node, obj[field], field
-
+                    
                 $(node).bind 'change', (event) =>
-                    @updateObject { path: path_cpy , value: $(event.target).val() }
+                    console.log "Updating object"
+                    i = 0
+                    #while i < args.path.length - 1
+                    #    obj = obj[args.path[i++]]
+                    # Suppporting 1-length paths for now
+                    @obj[path_cpy] = $(event.target).val()
+                    @triggerEvent "changed", { view: @, domEvent: event }
             
             $(@elem).each bindNode
             $(@elem).find("[bind]").each bindNode
             
-        updateObject: (args) ->
-            console.log "Updating object"
-            obj = @obj
-            i = 0
-            #while i < args.path.length - 1
-            #    obj = obj[args.path[i++]]
-            # Suppporting 1-length paths for now
-            obj[args.path[i]] = args.value
+        submit: () ->
+            console.log "Submitting object"
+            if @obj.id
+                @resource.put @obj, (obj)=>
+                    @triggerEvent "submitted"
+                    @bind obj
+            else
+                @resource.post @obj, (obj)=>
+                    @triggerEvent "submitted"
+                    @bind obj
+
+        delete: () ->
+            @resource.delete @obj, ()=>
+                @bind(@resource.empty())
             
 
     class ResourceListItemView extends ResourceView
@@ -334,7 +347,9 @@ define ['jquery', 'cs!notifier', 'jquery.tmpl.min', 'jquery.upload-1.0.2.min'], 
         bind: (obj) ->
             super obj
 #            @elem.attr "id", obj.id
-            @triggerEvent = (event, args) ->
+            @triggerEvent = (event, args) =>
+                args ?= {}
+                args.view = @
                 @parentView.triggerEvent event, args
 
     class ResourceListView extends ResourceView
@@ -358,23 +373,9 @@ define ['jquery', 'cs!notifier', 'jquery.tmpl.min', 'jquery.upload-1.0.2.min'], 
         bind: (obj) ->
             super obj
         
-        submit: () ->
-            console.log "Submitting object"
-            if @obj.id
-                @resource.put @obj, (obj)=>
-                    @triggerEvent "submitted"
-                    @bind obj
-            else
-                @resource.post @obj, (obj)=>
-                    @triggerEvent "submitted"
-                    @bind obj
-            
-        delete: () ->
-            @resource.delete @obj, ()=>
-                @bind(@resource.empty())
-            
+
     return {
         "App": App
-        "ResourcePaneView": ResourcePaneView
+        "ResourceView": ResourceView
         "ResourceListView": ResourceListView
     }

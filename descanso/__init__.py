@@ -57,6 +57,7 @@ class api:
                        return rc.DUPLICATE_ENTRY
 
             def read(self, request, *args, **kwargs):
+                kwargs.update(request.GET)
                 res = super(DescansoHandler, self).read(request, *args, **kwargs)
                 if res.__class__.__name__ == "Image":
                     return serve_file(request, res.file)
